@@ -20,7 +20,7 @@ You must strictly follow this feature-first / layered architecture inside the `l
 - `lib/providers/` (State management, business logic using ChangeNotifier)
 - `lib/screens/` (Full page views)
 - `lib/widgets/` (Reusable global UI components like `PrimaryButton`, `CustomTextField`)
-
+С
 ## STRICT CODING RULES:
 
 1. **Separation of Concerns (Crucial):**
