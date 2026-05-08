@@ -1,21 +1,24 @@
-import 'package:flutter/material.dart';
-import 'screens/screen_loading.dart';
+name: tirbushona_loyalty_app
+description: "A new Flutter project."
+publish_to: 'none'
 
-void main() {
-  runApp(const MyApp());
-}
+version: 1.0.0+1
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+environment:
+  sdk: ^3.11.1
 
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Tirbushona Loyalty App',
-      theme: ThemeData(
-        useMaterial3: true,
-      ),
-      home: const ScreenLoading(),
-    );
-  }
-}
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
