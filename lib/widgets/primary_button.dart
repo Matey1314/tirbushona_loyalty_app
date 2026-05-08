@@ -15,7 +15,7 @@ class PrimaryButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.width,
-    this.height = 56,
+    this.height = 49,
     this.borderRadius = 12,
     this.textStyle,
     this.isLoading = false,
