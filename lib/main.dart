@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'screens/login_screen.dart';
+import 'screens/loading_screen.dart';
 
 void main() {
   runApp(const TirbushonaApp());
@@ -17,7 +18,7 @@ class TirbushonaApp extends StatelessWidget {
         // Задаваме леко сивия фон за цялото приложение
         scaffoldBackgroundColor: const Color(0xFFE9EDF4), 
       ),
-      home: const LoginScreen(),
+      home: const LoadingScreen(),
     );
   }
 }
