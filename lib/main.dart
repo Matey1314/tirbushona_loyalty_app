@@ -1,24 +1,23 @@
-name: tirbushona_loyalty_app
-description: "A new Flutter project."
-publish_to: 'none'
+import 'package:flutter/material.dart';
+import 'screens/login_screen.dart';
 
-version: 1.0.0+1
+void main() {
+  runApp(const TirbushonaApp());
+}
 
-environment:
-  sdk: ^3.11.1
+class TirbushonaApp extends StatelessWidget {
+  const TirbushonaApp({super.key});
 
-dependencies:
-  flutter:
-    sdk: flutter
-  cupertino_icons: ^1.0.8
-
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  flutter_lints: ^6.0.0
-
-flutter:
-  uses-material-design: true
-
-  assets:
-    - assets/images/
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Tirbushona Loyalty App',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        // Задаваме леко сивия фон за цялото приложение
+        scaffoldBackgroundColor: const Color(0xFFE9EDF4), 
+      ),
+      home: const LoginScreen(),
+    );
+  }
+}
