@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'screens/login_screen.dart';
 import 'screens/loading_screen.dart';
 
@@ -16,7 +17,10 @@ class TirbushonaApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         // Задаваме леко сивия фон за цялото приложение
-        scaffoldBackgroundColor: const Color(0xFFE9EDF4), 
+        scaffoldBackgroundColor: const Color(0xFFE9EDF4),
+        textTheme: GoogleFonts.poppinsTextTheme(
+          Theme.of(context).textTheme,
+        ),
       ),
       home: const LoadingScreen(),
     );

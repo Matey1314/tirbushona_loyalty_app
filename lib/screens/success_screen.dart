@@ -42,7 +42,7 @@ class SuccessScreen extends StatelessWidget {
                     ),
                     padding: const EdgeInsets.all(24),
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         // Solid Green Circle with White Checkmark
@@ -62,28 +62,29 @@ class SuccessScreen extends StatelessWidget {
                           ),
                         ),
 
+                        const SizedBox(height: 30),
+
                         // Title
                         const Text(
                           'Готово!',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: AppColors.black,
-                            fontSize: 32,
+                            fontSize: 36,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
 
+                        const SizedBox(height: 30),
+
                         // Subtitle
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 8.0),
-                          child: Text(
-                            'Номерът Ви беше потвърден успешно.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Color(0xFF6B7280),
-                              fontSize: 16,
-                              fontWeight: FontWeight.w400,
-                            ),
+                        const Text(
+                          'Номерът Ви беше потвърден успешно.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: AppColors.black,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ],
