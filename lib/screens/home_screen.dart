@@ -44,22 +44,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // Banner Placeholder
-                Container(
-                  height: 120,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFD1D5DB),
+                // Store Card Banner
+                AspectRatio(
+                  aspectRatio: 2.5,
+                  child: ClipRRect(
                     borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: const Center(
-                    child: Text(
-                      '[ Image Banner Placeholder ]',
-                      style: TextStyle(
-                        color: Color(0xFF6B7280),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
+                    child: Image.asset(
+                      'assets/images/banner.png',
+                      width: double.infinity,
+                      fit: BoxFit.contain,
                     ),
                   ),
                 ),
@@ -126,6 +119,44 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 40),
+
+                // История на покупките (History) Section
+                const Text(
+                  'История на покупките',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Transaction Cards
+                _buildTransactionCard(
+                  date: '10.02.2026г.',
+                  totalAmount: '1119.21 €',
+                  pointsText: 'Натрупано : 55.96 €',
+                  isAccumulated: true,
+                ),
+                _buildTransactionCard(
+                  date: '10.02.2026г.',
+                  totalAmount: '94.50 €',
+                  pointsText: 'Приспаднато : 15.56 €',
+                  isAccumulated: false,
+                ),
+                _buildTransactionCard(
+                  date: '09.02.2026г.',
+                  totalAmount: '245.75 €',
+                  pointsText: 'Натрупано : 12.28 €',
+                  isAccumulated: true,
+                ),
+                _buildTransactionCard(
+                  date: '08.02.2026г.',
+                  totalAmount: '67.99 €',
+                  pointsText: 'Натрупано : 3.40 €',
+                  isAccumulated: true,
+                ),
+                const SizedBox(height: 40),
               ],
             ),
           ),
@@ -146,14 +177,14 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               // Начало (Home)
               _buildNavItem(
                 index: 0,
-                icon: Icons.savings,
+                icon: Icons.savings_outlined,
                 label: 'Начало',
                 isSelected: _selectedIndex == 0,
               ),
@@ -167,14 +198,14 @@ class _HomeScreenState extends State<HomeScreen> {
               // История (History)
               _buildNavItem(
                 index: 2,
-                icon: Icons.analytics,
+                icon: Icons.trending_up,
                 label: 'История',
                 isSelected: _selectedIndex == 2,
               ),
               // Настройки (Settings)
               _buildNavItem(
                 index: 3,
-                icon: Icons.person,
+                icon: Icons.person_outline,
                 label: 'Настройки',
                 isSelected: _selectedIndex == 3,
               ),
@@ -200,46 +231,150 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Icon Container (Active: Gradient Bubble, Inactive: Plain Icon)
-          isSelected
-              ? Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(15),
-                    gradient: const LinearGradient(
+          // Icon Container (Active: Gradient, Inactive: Light Grey)
+          Container(
+            width: 55,
+            height: 55,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: isSelected
+                  ? const LinearGradient(
                       colors: [
                         AppColors.gradientBlue, // #2563EB
                         AppColors.gradientRed, // #DC2626
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.gradientBlue.withValues(alpha: 0.3),
-                        offset: const Offset(0, 4),
-                        blurRadius: 8,
-                        spreadRadius: 0,
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    child: Icon(icon, color: Colors.white, size: 28),
-                  ),
-                )
-              : Icon(icon, color: const Color(0xFF9CA3AF), size: 28),
+                    )
+                  : null,
+              color: isSelected ? null : const Color(0xFFF8FAFC),
+              boxShadow: [
+                BoxShadow(
+                  color: isSelected
+                      ? AppColors.gradientBlue.withValues(alpha: 0.3)
+                      : Colors.black.withValues(alpha: 0.05),
+                  offset: const Offset(0, isSelected ? 4 : 2),
+                  blurRadius: isSelected ? 8 : 10,
+                  spreadRadius: 0,
+                ),
+              ],
+            ),
+            child: Center(
+              child: Icon(
+                icon,
+                color: isSelected ? Colors.white : const Color(0xFF9CA3AF),
+                size: 28,
+              ),
+            ),
+          ),
 
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
 
-          // Text Label
+          // Text Label (Grey for both active and inactive)
           Text(
             label,
-            style: TextStyle(
-              color: isSelected ? Colors.black : const Color(0xFF9CA3AF),
+            style: const TextStyle(
+              color: Color(0xFF9CA3AF),
               fontSize: 12,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              fontWeight: FontWeight.w600,
             ),
+          ),
+        ],
+      ),
+    );
+      ),
+    );
+  }
+
+  Widget _buildTransactionCard({
+    required String date,
+    required String totalAmount,
+    required String pointsText,
+    required bool isAccumulated,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            offset: const Offset(0, 2),
+            blurRadius: 8,
+            spreadRadius: 0,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Left: Red Circular Icon Container
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFFDC2626),
+            ),
+            child: const Center(
+              child: Icon(
+                Icons.savings_outlined,
+                color: Colors.white,
+                size: 28,
+              ),
+            ),
+          ),
+          const SizedBox(width: 15),
+
+          // Middle: Date Column
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Дата',
+                style: TextStyle(
+                  color: Color(0xFF9CA3AF),
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                date,
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+
+          const Spacer(),
+
+          // Right: Amount & Points Column
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                'Сума : $totalAmount',
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                pointsText,
+                style: TextStyle(
+                  color: isAccumulated ? const Color(0xFF22C55E) : const Color(0xFFDC2626),
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
           ),
         ],
       ),
