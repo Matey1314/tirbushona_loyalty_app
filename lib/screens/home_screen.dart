@@ -96,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   Container(
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(12),
                       gradient: const LinearGradient(
                         colors: [
                           AppColors.gradientBlue,
@@ -105,6 +105,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.20),
+                          offset: const Offset(0, 4),
+                          blurRadius: 4,
+                          spreadRadius: 0,
+                        ),
+                      ],
                     ),
                     padding: const EdgeInsets.all(20),
                     child: Column(
@@ -408,13 +416,14 @@ class _HomeScreenState extends State<HomeScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        color: const Color(0xFFFFFBFB),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            offset: const Offset(0, 2),
-            blurRadius: 8,
+            color: Colors.black.withOpacity(0.20),
+            offset: const Offset(0, 4),
+            blurRadius: 4,
+            spreadRadius: 0,
           ),
         ],
       ),
