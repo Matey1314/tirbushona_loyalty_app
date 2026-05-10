@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tirbushona_loyalty_app/core/theme/app_colors.dart';
 import 'package:tirbushona_loyalty_app/widgets/primary_button.dart';
+import 'package:tirbushona_loyalty_app/screens/otp_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,23 +23,27 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _handleNextPress() {
-    if (_phoneController.text.isEmpty) {
+    // Get the phone number and remove whitespace
+    String phoneNumber = _phoneController.text.replaceAll(' ', '').trim();
+
+    // Validate: Check if empty or less than 9 characters
+    if (phoneNumber.isEmpty || phoneNumber.length < 9) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Моля въведете телефонен номер')),
+        SnackBar(
+          content: const Text('Моля, въведете валиден телефонен номер.'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
       );
       return;
     }
 
-    setState(() => _isLoading = true);
-    // Simulate API call
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Заявка отправена')),
-        );
-      }
-    });
+    // Navigate to OTP Screen immediately
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const OtpScreen(),
+      ),
+    );
   }
 
   @override
