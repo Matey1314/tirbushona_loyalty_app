@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:barcode_widget/barcode_widget.dart';
 import 'package:tirbushona_loyalty_app/core/theme/app_colors.dart';
+import 'package:tirbushona_loyalty_app/screens/cards_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,227 +19,16 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFE9EDF4),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Fixed Header Section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 16),
-
-                  // Header Section
-                  const Text(
-                    'Здравей, Матей !',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
+      body: _selectedIndex == 0
+          ? _buildHomeContent()
+          : _selectedIndex == 1
+              ? const CardsScreen()
+              : Center(
+                  child: Text(
+                    _selectedIndex == 2 ? 'История' : 'Профил',
+                    style: const TextStyle(fontSize: 18),
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Ще трупаш или приспадаш днес?',
-                    style: TextStyle(
-                      color: Color(0xFF6B7280),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Store Card Banner - 3D Flip Animation with No Scaling Jump
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _isCardFlipped = !_isCardFlipped;
-                      });
-                    },
-                    child: Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.only(bottom: 25),
-                      child: TweenAnimationBuilder<double>(
-                        tween: Tween<double>(
-                          begin: 0,
-                          end: _isCardFlipped ? 3.14159 : 0,
-                        ),
-                        duration: const Duration(milliseconds: 600),
-                        builder: (context, value, child) {
-                          final isBack = value > 1.5707; // pi/2
-                          return Transform(
-                            alignment: Alignment.center,
-                            transform: Matrix4.identity()
-                              ..setEntry(3, 2, 0.001) // Perspective
-                              ..rotateY(value),
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                // Front Card - Sets the size of the stack
-                                _buildCardFront(),
-                                // Back Card - Positioned.fill ensures exact size match
-                                if (isBack)
-                                  Positioned.fill(
-                                    child: Transform(
-                                      alignment: Alignment.center,
-                                      transform: Matrix4.identity()..rotateY(3.14159),
-                                      child: _buildCardBack(),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-
-                  // Balance Card
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      gradient: const LinearGradient(
-                        colors: [
-                          AppColors.gradientBlue,
-                          AppColors.gradientRed,
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.20),
-                          offset: const Offset(0, 4),
-                          blurRadius: 4,
-                          spreadRadius: 0,
-                        ),
-                      ],
-                    ),
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text(
-                              'Натрупана сума',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            const Icon(
-                              Icons.savings_outlined,
-                              color: Colors.white,
-                              size: 24,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          '100,36 €',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 42,
-                            fontWeight: FontWeight.bold,
-                            shadows: [
-                              Shadow(
-                                offset: const Offset(0, 2),
-                                blurRadius: 4.0,
-                                color: Colors.black.withOpacity(0.25),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 40),
-
-                  // History Section Title
-                  const Text(
-                    'История на покупките',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-              ),
-            ),
-
-            // Scrollable Transaction List
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                children: [
-                  _buildTransactionCard(
-                    date: '10.02.2026г.',
-                    totalAmount: '1119.21 €',
-                    pointsText: 'Натрупано : 55.96 €',
-                    isAccumulated: true,
-                  ),
-                  _buildTransactionCard(
-                    date: '10.02.2026г.',
-                    totalAmount: '94.50 €',
-                    pointsText: 'Приспаднато : 15.56 €',
-                    isAccumulated: false,
-                  ),
-                  _buildTransactionCard(
-                    date: '09.02.2026г.',
-                    totalAmount: '245.75 €',
-                    pointsText: 'Натрупано : 12.28 €',
-                    isAccumulated: true,
-                  ),
-                  _buildTransactionCard(
-                    date: '07.02.2026г.',
-                    totalAmount: '45.20 €',
-                    pointsText: 'Натрупано : 2.26 €',
-                    isAccumulated: true,
-                  ),
-                  _buildTransactionCard(
-                    date: '05.02.2026г.',
-                    totalAmount: '210.00 €',
-                    pointsText: 'Приспаднато : 40.00 €',
-                    isAccumulated: false,
-                  ),
-                  _buildTransactionCard(
-                    date: '04.02.2026г.',
-                    totalAmount: '12.50 €',
-                    pointsText: 'Натрупано : 0.63 €',
-                    isAccumulated: true,
-                  ),
-                  _buildTransactionCard(
-                    date: '01.02.2026г.',
-                    totalAmount: '320.45 €',
-                    pointsText: 'Натрупано : 16.02 €',
-                    isAccumulated: true,
-                  ),
-                  _buildTransactionCard(
-                    date: '28.01.2026г.',
-                    totalAmount: '55.00 €',
-                    pointsText: 'Приспаднато : 10.00 €',
-                    isAccumulated: false,
-                  ),
-                  _buildTransactionCard(
-                    date: '25.01.2026г.',
-                    totalAmount: '89.99 €',
-                    pointsText: 'Натрупано : 4.50 €',
-                    isAccumulated: true,
-                  ),
-                  const SizedBox(height: 100),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+                ),
 
       // Pixel Perfect Navigation Bar
       bottomNavigationBar: Container(
@@ -264,6 +54,230 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildHomeContent() {
+    return SafeArea(
+      child: Column(
+        children: [
+          // Fixed Header Section
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 16),
+
+                // Header Section
+                const Text(
+                  'Здравей, Матей !',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Ще трупаш или приспадаш днес?',
+                  style: TextStyle(
+                    color: Color(0xFF6B7280),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Store Card Banner - 3D Flip Animation with No Scaling Jump
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _isCardFlipped = !_isCardFlipped;
+                    });
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 25),
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween<double>(
+                        begin: 0,
+                        end: _isCardFlipped ? 3.14159 : 0,
+                      ),
+                      duration: const Duration(milliseconds: 600),
+                      builder: (context, value, child) {
+                        final isBack = value > 1.5707; // pi/2
+                        return Transform(
+                          alignment: Alignment.center,
+                          transform: Matrix4.identity()
+                            ..setEntry(3, 2, 0.001) // Perspective
+                            ..rotateY(value),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              // Front Card - Sets the size of the stack
+                              _buildCardFront(),
+                              // Back Card - Positioned.fill ensures exact size match
+                              if (isBack)
+                                Positioned.fill(
+                                  child: Transform(
+                                    alignment: Alignment.center,
+                                    transform: Matrix4.identity()..rotateY(3.14159),
+                                    child: _buildCardBack(),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+
+                // Balance Card
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    gradient: const LinearGradient(
+                      colors: [
+                        AppColors.gradientBlue,
+                        AppColors.gradientRed,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.20),
+                        offset: const Offset(0, 4),
+                        blurRadius: 4,
+                        spreadRadius: 0,
+                      ),
+                    ],
+                  ),
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text(
+                            'Натрупана сума',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          const Icon(
+                            Icons.savings_outlined,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        '100,36 €',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 42,
+                          fontWeight: FontWeight.bold,
+                          shadows: [
+                            Shadow(
+                              offset: const Offset(0, 2),
+                              blurRadius: 4.0,
+                              color: Colors.black.withOpacity(0.25),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 40),
+
+                // History Section Title
+                const Text(
+                  'История на покупките',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+
+          // Scrollable Transaction List
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              children: [
+                _buildTransactionCard(
+                  date: '10.02.2026г.',
+                  totalAmount: '1119.21 €',
+                  pointsText: 'Натрупано : 55.96 €',
+                  isAccumulated: true,
+                ),
+                _buildTransactionCard(
+                  date: '10.02.2026г.',
+                  totalAmount: '94.50 €',
+                  pointsText: 'Приспаднато : 15.56 €',
+                  isAccumulated: false,
+                ),
+                _buildTransactionCard(
+                  date: '09.02.2026г.',
+                  totalAmount: '245.75 €',
+                  pointsText: 'Натрупано : 12.28 €',
+                  isAccumulated: true,
+                ),
+                _buildTransactionCard(
+                  date: '07.02.2026г.',
+                  totalAmount: '45.20 €',
+                  pointsText: 'Натрупано : 2.26 €',
+                  isAccumulated: true,
+                ),
+                _buildTransactionCard(
+                  date: '05.02.2026г.',
+                  totalAmount: '210.00 €',
+                  pointsText: 'Приспаднато : 40.00 €',
+                  isAccumulated: false,
+                ),
+                _buildTransactionCard(
+                  date: '04.02.2026г.',
+                  totalAmount: '12.50 €',
+                  pointsText: 'Натрупано : 0.63 €',
+                  isAccumulated: true,
+                ),
+                _buildTransactionCard(
+                  date: '01.02.2026г.',
+                  totalAmount: '320.45 €',
+                  pointsText: 'Натрупано : 16.02 €',
+                  isAccumulated: true,
+                ),
+                _buildTransactionCard(
+                  date: '28.01.2026г.',
+                  totalAmount: '55.00 €',
+                  pointsText: 'Приспаднато : 10.00 €',
+                  isAccumulated: false,
+                ),
+                _buildTransactionCard(
+                  date: '25.01.2026г.',
+                  totalAmount: '89.99 €',
+                  pointsText: 'Натрупано : 4.50 €',
+                  isAccumulated: true,
+                ),
+                const SizedBox(height: 100),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
