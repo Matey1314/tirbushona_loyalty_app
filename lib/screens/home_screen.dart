@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:barcode_widget/barcode_widget.dart';
 import 'package:tirbushona_loyalty_app/core/theme/app_colors.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -11,6 +12,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   bool _isCardFlipped = false;
+  final String _userCardNumber = "100293847563";
 
   @override
   Widget build(BuildContext context) {
@@ -357,46 +359,77 @@ class _HomeScreenState extends State<HomeScreen> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: SizedBox.expand(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
+          child: Stack(
+            alignment: Alignment.center,
             children: [
-              // Barcode Placeholder - Clean and Centered
-              Container(
-                height: 80,
-                width: 200,
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(8),
+              // Centered BarcodeWidget
+              Center(
+                child: BarcodeWidget(
+                  barcode: Barcode.code128(),
+                  data: _userCardNumber,
+                  width: 200,
+                  height: 80,
+                  drawText: false,
                 ),
-                child: Stack(
-                  children: [
-                    // Simple striped pattern
-                    Row(
-                      children: List.generate(
-                        40,
-                        (index) => Expanded(
-                          child: Container(
-                            color: index % 2 == 0 ? Colors.black : Colors.white,
-                            height: 80,
-                          ),
-                        ),
-                      ),
-                    ),
-                    // "SCAN BARCODE" text overlay
-                    const Center(
-                      child: Text(
-                        'SCAN BARCODE',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          backgroundColor: Colors.black87,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ],
+              ),
+              // Fullscreen Button - Top Right Corner
+              Positioned(
+                top: 12,
+                right: 12,
+                child: IconButton(
+                  onPressed: () => _showFullscreenBarcode(context),
+                  icon: const Icon(Icons.zoom_out_map),
+                  color: Colors.black54,
+                  iconSize: 24,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showFullscreenBarcode(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Close Button - Top Right
+              Align(
+                alignment: Alignment.topRight,
+                child: IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close),
+                  color: Colors.black54,
+                  iconSize: 28,
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Enlarged Barcode
+              BarcodeWidget(
+                barcode: Barcode.code128(),
+                data: _userCardNumber,
+                width: 300,
+                height: 150,
+                drawText: false,
+              ),
+              const SizedBox(height: 16),
+              // Instruction Text
+              const Text(
+                'Скен на касата',
+                style: TextStyle(
+                  color: Colors.black54,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
