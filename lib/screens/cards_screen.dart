@@ -50,7 +50,6 @@ class _CardsScreenState extends State<CardsScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Empty Card Slot - Exact Figma Dimensions
           Container(
             width: 343,
             height: 200,
@@ -58,7 +57,9 @@ class _CardsScreenState extends State<CardsScreen> {
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: const Color(0xFF9CA3AF), width: 1),
+              // You can keep the existing BoxShadow here if it was present
             ),
+            // This padding is the absolute barrier preventing cropping
             padding: const EdgeInsets.all(24.0),
             child: Center(
               child: Image.asset(
