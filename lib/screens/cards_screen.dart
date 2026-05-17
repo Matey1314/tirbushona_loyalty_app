@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:tirbushona_loyalty_app/core/theme/app_colors.dart';
 import 'package:tirbushona_loyalty_app/services/cards_service.dart';
 import 'add_card_screen.dart';
+import 'card_display_screen.dart';
 
 class CardsScreen extends StatefulWidget {
   const CardsScreen({super.key});
@@ -160,12 +161,12 @@ class _CardsScreenState extends State<CardsScreen> {
     final cards = CardsService.getCards();
     return Expanded(
       child: GridView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        padding: const EdgeInsets.all(20),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
-          crossAxisSpacing: 15,
-          mainAxisSpacing: 15,
-          childAspectRatio: 1.0,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: 1.3,
         ),
         itemCount: cards.length + 1, // +1 for the "Add Card" button
         itemBuilder: (context, index) {
@@ -227,28 +228,49 @@ class _CardsScreenState extends State<CardsScreen> {
             );
           }
 
-          // Regular card tiles
+          // Regular card tiles with Figma specs
           final card = cards[index];
-          return Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.10),
-                  offset: const Offset(0, 2),
-                  blurRadius: 8,
+          return InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => CardDisplayScreen(card: card),
                 ),
-              ],
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
+              );
+            },
+            child: Container(
+              height: 120,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.10),
+                    offset: const Offset(0, 2),
+                    blurRadius: 8,
+                  ),
+                ],
+              ),
               child: Center(
-                child: Image.asset(
-                  card['logo']!,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) =>
-                      const Icon(Icons.credit_card, size: 48, color: Colors.grey),
+                // Logo Container with exact Figma dimensions
+                child: Container(
+                  width: 120,
+                  height: 75,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  padding: const EdgeInsets.all(8),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.asset(
+                      card['logo']!,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) =>
+                          const Icon(Icons.credit_card, size: 32, color: Colors.grey),
+                    ),
+                  ),
                 ),
               ),
             ),
