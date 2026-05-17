@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'add_card_details_screen.dart';
 
 class AddCardScreen extends StatefulWidget {
   const AddCardScreen({super.key});
@@ -131,8 +132,13 @@ class _AddCardScreenState extends State<AddCardScreen> {
                         final brand = filteredBrands[index];
                         return GestureDetector(
                           onTap: () {
-                            debugPrint('Selected brand: ${brand['name']}');
-                            // TODO: Navigate to card details form
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    AddCardDetailsScreen(brand: brand),
+                              ),
+                            );
                           },
                           child: Container(
                             margin: const EdgeInsets.only(bottom: 10),
@@ -152,37 +158,29 @@ class _AddCardScreenState extends State<AddCardScreen> {
                               padding: const EdgeInsets.all(12.0),
                               child: Row(
                                 children: [
-                                  // Logo - Full-Bleed 48x48 Rounded Square with Real Assets
+                                  // Logo - Exact Figma Dimensions 75x45
                                   Container(
-                                    width: 48,
-                                    height: 48,
+                                    width: 75, // Exact Figma width
+                                    height: 45, // Exact Figma height
                                     decoration: BoxDecoration(
                                       color: Colors.white,
-                                      borderRadius: BorderRadius.circular(10),
+                                      borderRadius: BorderRadius.circular(8),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.black.withOpacity(0.1),
+                                          color: Colors.black.withOpacity(0.05),
                                           offset: const Offset(0, 2),
                                           blurRadius: 4,
-                                          spreadRadius: 0,
                                         ),
                                       ],
                                     ),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(10),
+                                    // A tiny padding so the logo doesn't touch the absolute edge of the white box
+                                    padding: const EdgeInsets.all(4.0),
+                                    child: Center(
                                       child: Image.asset(
                                         brand['logo']!,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (context, error, stackTrace) {
-                                          return Container(
-                                            color: Colors.grey.shade200,
-                                            child: const Icon(
-                                              Icons.broken_image,
-                                              color: Colors.grey,
-                                              size: 24,
-                                            ),
-                                          );
-                                        },
+                                        // BoxFit.contain ensures the logo scales perfectly within the 75x45 rectangle without cropping
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, color: Colors.grey, size: 24),
                                       ),
                                     ),
                                   ),
