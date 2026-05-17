@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:barcode_widget/barcode_widget.dart';
 import 'package:tirbushona_loyalty_app/core/theme/app_colors.dart';
 import 'package:tirbushona_loyalty_app/screens/cards_screen.dart';
+import 'package:tirbushona_loyalty_app/screens/history_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,12 +24,14 @@ class _HomeScreenState extends State<HomeScreen> {
           ? _buildHomeContent()
           : _selectedIndex == 1
               ? const CardsScreen()
-              : Center(
-                  child: Text(
-                    _selectedIndex == 2 ? 'История' : 'Профил',
-                    style: const TextStyle(fontSize: 18),
-                  ),
-                ),
+              : _selectedIndex == 2
+                  ? const HistoryScreen()
+                  : Center(
+                      child: Text(
+                        _selectedIndex == 3 ? 'Профил' : 'История',
+                        style: const TextStyle(fontSize: 18),
+                      ),
+                    ),
 
       // Pixel Perfect Navigation Bar
       bottomNavigationBar: Container(
@@ -90,7 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // Store Card Banner - 3D Flip Animation with No Scaling Jump
+                // Store Card Banner - 3D Flip Animation ONLY
                 GestureDetector(
                   onTap: () {
                     setState(() {
@@ -116,9 +119,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Stack(
                             alignment: Alignment.center,
                             children: [
-                              // Front Card - Sets the size of the stack
+                              // Front Card
                               _buildCardFront(),
-                              // Back Card - Positioned.fill ensures exact size match
+                              // Back Card (With Barcode and Clean Trigger Button inside)
                               if (isBack)
                                 Positioned.fill(
                                   child: Transform(
@@ -134,6 +137,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 5),
 
                 // Balance Card
                 Container(
@@ -201,12 +205,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 40),
 
                 // History Section Title
-                const Text(
-                  'История на покупките',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                const Center(
+                  child: Text(
+                    'История на покупките',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -356,100 +362,140 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // The Back side now holds the static barcode preview AND the absolute button trigger
   Widget _buildCardBack() {
     return Container(
-      key: const ValueKey('back'),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
         color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            offset: const Offset(0, 4),
-            blurRadius: 12,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Static Barcode Preview on the back
+          BarcodeWidget(
+            barcode: Barcode.code128(),
+            data: _userCardNumber,
+            width: 220,
+            height: 65,
+            drawText: false,
+          ),
+          const SizedBox(height: 8),
+          
+          // Isolated Button ONLY for launching the full screen overlay
+          GestureDetector(
+            onTap: () => _showFullscreenBarcode(context, _userCardNumber),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF3F4F6),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.qr_code_scanner, color: Colors.black54, size: 16),
+                  SizedBox(width: 6),
+                  Text(
+                    'сканирай карта',
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: SizedBox.expand(
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              // Centered BarcodeWidget
-              Center(
-                child: BarcodeWidget(
-                  barcode: Barcode.code128(),
-                  data: _userCardNumber,
-                  width: 200,
-                  height: 80,
-                  drawText: false,
-                ),
-              ),
-              // Fullscreen Button - Top Right Corner
-              Positioned(
-                top: 12,
-                right: 12,
-                child: IconButton(
-                  onPressed: () => _showFullscreenBarcode(context),
-                  icon: const Icon(Icons.zoom_out_map),
-                  color: Colors.black54,
-                  iconSize: 24,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
 
-  void _showFullscreenBarcode(BuildContext context) {
+  void _showFullscreenBarcode(BuildContext context, String barcodeData) {
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Close Button - Top Right
-              Align(
-                alignment: Alignment.topRight,
-                child: IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close),
-                  color: Colors.black54,
-                  iconSize: 28,
+      barrierDismissible: true,
+      barrierColor: Colors.black.withOpacity(0.6),
+      builder: (context) {
+        return GestureDetector(
+          onTap: () => Navigator.of(context).pop(),
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.5, end: 1.0).animate(
+              CurvedAnimation(
+                parent: ModalRoute.of(context)!.animation!,
+                curve: Curves.easeOutCubic,
+              ),
+            ),
+            child: FadeTransition(
+              opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
+                CurvedAnimation(
+                  parent: ModalRoute.of(context)!.animation!,
+                  curve: Curves.easeIn,
                 ),
               ),
-              const SizedBox(height: 16),
-              // Enlarged Barcode
-              BarcodeWidget(
-                barcode: Barcode.code128(),
-                data: _userCardNumber,
-                width: 300,
-                height: 150,
-                drawText: false,
-              ),
-              const SizedBox(height: 16),
-              // Instruction Text
-              const Text(
-                'Скен на касата',
-                style: TextStyle(
-                  color: Colors.black54,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+              child: Center(
+                child: Material(
+                  color: Colors.transparent,
+                  child: Container(
+                    width: double.infinity,
+                    height: MediaQuery.of(context).size.height * 0.75,
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.20),
+                          offset: const Offset(0, 10),
+                          blurRadius: 25,
+                          spreadRadius: 0,
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Center(
+                            child: BarcodeWidget(
+                              barcode: Barcode.code128(),
+                              data: barcodeData,
+                              width: double.infinity,
+                              height: 300,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 40),
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: const Text(
+                            'Затвори',
+                            style: TextStyle(
+                              color: Color(0xFF6B7280),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -467,10 +513,9 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.20),
+            color: Colors.black.withOpacity(0.05),
             offset: const Offset(0, 4),
             blurRadius: 4,
-            spreadRadius: 0,
           ),
         ],
       ),

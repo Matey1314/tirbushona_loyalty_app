@@ -486,7 +486,9 @@ class _AddCardDetailsScreenState extends State<AddCardDetailsScreen> {
       ),
     );
 
-    // Navigate back to cards screen
-    Navigator.popUntil(context, (route) => route.isFirst);
+    // Pop the details screen
+    Navigator.of(context).pop();
+    // Pop the brand selection list screen to return to the main grid
+    Navigator.of(context).pop();
   }
 }
