@@ -6,7 +6,20 @@ import 'package:tirbushona_loyalty_app/widgets/bouncing_dots_indicator.dart';
 import 'success_screen.dart';
 
 class OtpScreen extends StatefulWidget {
-  const OtpScreen({super.key});
+  final String phoneNumber;
+  final String title;
+  final String subtitle;
+  final VoidCallback? onSuccess;
+  final bool isPhoneChange;
+
+  const OtpScreen({
+    super.key,
+    required this.phoneNumber,
+    this.title = 'Идентификация',
+    this.subtitle = 'Изпратен е 4 цифрен код на номер',
+    this.onSuccess,
+    this.isPhoneChange = false,
+  });
 
   @override
   State<OtpScreen> createState() => _OtpScreenState();
@@ -72,12 +85,98 @@ class _OtpScreenState extends State<OtpScreen>
       // Simulate server verification delay
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) {
-          Navigator.of(context).pushReplacement(
-            createSmoothRoute(const SuccessScreen()),
-          );
+          if (widget.isPhoneChange) {
+            // For phone change, show success and return to profile
+            _showPhoneChangeSuccess();
+          } else {
+            // For login, navigate to success screen
+            Navigator.of(context).pushReplacement(
+              createSmoothRoute(const SuccessScreen()),
+            );
+          }
         }
       });
     }
+  }
+
+  void _showPhoneChangeSuccess() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 16),
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.check_circle,
+                  color: Colors.green,
+                  size: 50,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Номерът е потвърден!',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Вашият нов номер: ${widget.phoneNumber}',
+                style: const TextStyle(
+                  color: Color(0xFF6B7280),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Close dialog
+                    Navigator.of(context).popUntil((route) => route.isFirst);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.gradientBlue,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: const Text(
+                    'Готово',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -96,6 +195,29 @@ class _OtpScreenState extends State<OtpScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFE9EDF4),
+      appBar: widget.isPhoneChange
+          ? AppBar(
+              backgroundColor: const Color(0xFFE9EDF4),
+              elevation: 0,
+              leading: GestureDetector(
+                onTap: () => Navigator.of(context).pop(),
+                child: const Icon(
+                  Icons.arrow_back,
+                  color: Colors.black,
+                  size: 24,
+                ),
+              ),
+              title: const Text(
+                'Потвърждение',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              centerTitle: true,
+            )
+          : null,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -106,10 +228,10 @@ class _OtpScreenState extends State<OtpScreen>
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   // Title
-                  const Text(
-                    'Идентификация',
+                  Text(
+                    widget.title,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: AppColors.black,
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
@@ -121,7 +243,6 @@ class _OtpScreenState extends State<OtpScreen>
                   // White Card Container
                   Container(
                     width: 390,
-                    height: 329,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
@@ -141,7 +262,7 @@ class _OtpScreenState extends State<OtpScreen>
                       children: [
                         // Subtitle
                         Text(
-                          'Изпратен е 4 цифрен код на номер :\n +359877537300',
+                          '${widget.subtitle}:\n ${widget.phoneNumber}',
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             color: Color(0xFF6B7280),
@@ -229,7 +350,7 @@ class _OtpScreenState extends State<OtpScreen>
                               SizedBox(
                                 width: double.infinity,
                                 child: PrimaryButton(
-                                  label: 'Изпрати',
+                                  label: widget.isPhoneChange ? 'Потвърди' : 'Изпрати',
                                   onPressed: _verifyCode,
                                 ),
                               ),

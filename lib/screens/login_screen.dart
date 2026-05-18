@@ -42,7 +42,10 @@ class _LoginScreenState extends State<LoginScreen> {
     // Navigate to OTP Screen immediately
     Navigator.of(context).push(
       createSmoothRoute(
-        const OtpScreen(),
+        OtpScreen(
+          phoneNumber: _phoneController.text,
+          isPhoneChange: false,
+        ),
       ),
     );
   }

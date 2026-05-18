@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:tirbushona_loyalty_app/core/theme/app_colors.dart';
+import 'package:tirbushona_loyalty_app/screens/profile_screen.dart';
+import 'package:tirbushona_loyalty_app/screens/preferences_screen.dart';
+import 'package:tirbushona_loyalty_app/main.dart' show createSmoothRoute;
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -90,30 +93,65 @@ class SettingsScreen extends StatelessWidget {
               child: Column(
                 children: [
                   _buildMenuOption(
+                    context: context,
                     icon: Icons.face,
                     label: 'Профил',
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.of(context).push(
+                        PageRouteBuilder(
+                          pageBuilder: (context, animation, secondaryAnimation) =>
+                              const ProfileScreen(),
+                          transitionDuration:
+                              const Duration(milliseconds: 300),
+                          reverseTransitionDuration:
+                              const Duration(milliseconds: 250),
+                          transitionsBuilder:
+                              (context, animation, secondaryAnimation, child) {
+                            final curvedAnimation = CurvedAnimation(
+                              parent: animation,
+                              curve: Curves.easeInOutCubic,
+                            );
+                            return FadeTransition(
+                              opacity: curvedAnimation,
+                              child: SlideTransition(
+                                position: Tween<Offset>(
+                                  begin: const Offset(0.08, 0.0),
+                                  end: Offset.zero,
+                                ).animate(curvedAnimation),
+                                child: child,
+                              ),
+                            );
+                          },
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 12),
                   _buildMenuOption(
+                    context: context,
                     icon: Icons.settings_outlined,
                     label: 'Настройки',
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.push(context, createSmoothRoute(const PreferencesScreen()));
+                    },
                   ),
                   const SizedBox(height: 12),
                   _buildMenuOption(
+                    context: context,
                     icon: Icons.email_outlined,
                     label: 'Вашето мнение',
                     onTap: () {},
                   ),
                   const SizedBox(height: 12),
                   _buildMenuOption(
+                    context: context,
                     icon: Icons.waves,
                     label: 'Относно Тирбушона',
                     onTap: () {},
                   ),
                   const SizedBox(height: 12),
                   _buildMenuOption(
+                    context: context,
                     icon: Icons.help_outline,
                     label: 'Помощ',
                     onTap: () {},
@@ -129,6 +167,7 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Widget _buildMenuOption({
+    required BuildContext context,
     required IconData icon,
     required String label,
     required VoidCallback onTap,

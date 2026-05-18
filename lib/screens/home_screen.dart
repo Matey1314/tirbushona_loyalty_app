@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:barcode_widget/barcode_widget.dart';
 import 'package:tirbushona_loyalty_app/core/theme/app_colors.dart';
+import 'package:tirbushona_loyalty_app/core/state/user_state.dart';
 import 'package:tirbushona_loyalty_app/screens/cards_screen.dart';
 import 'package:tirbushona_loyalty_app/screens/history_screen.dart';
 import 'package:tirbushona_loyalty_app/screens/settings_screen.dart';
+import 'package:tirbushona_loyalty_app/screens/receipt_details_screen.dart';
+import 'package:tirbushona_loyalty_app/main.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,7 +18,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   bool _isCardFlipped = false;
-  final String _userCardNumber = "100293847563";
 
   @override
   Widget build(BuildContext context) {
@@ -86,14 +88,19 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 const SizedBox(height: 16),
 
-                // Header Section
-                const Text(
-                  'Здравей, Матей !',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
+                // Header Section - Reactive greeting text
+                ValueListenableBuilder<String>(
+                  valueListenable: UserState().userName,
+                  builder: (context, currentName, child) {
+                    return Text(
+                      'Здравей, $currentName !',
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 8),
                 const Text(
@@ -389,7 +396,7 @@ class _HomeScreenState extends State<HomeScreen> {
           // Static Barcode Preview on the back
           BarcodeWidget(
             barcode: Barcode.code128(),
-            data: _userCardNumber,
+            data: UserState().userPhysicalCard.value,
             width: 220,
             height: 65,
             drawText: false,
@@ -398,7 +405,7 @@ class _HomeScreenState extends State<HomeScreen> {
           
           // Isolated Button ONLY for launching the full screen overlay
           GestureDetector(
-            onTap: () => _showFullscreenBarcode(context, _userCardNumber),
+            onTap: () => _showFullscreenBarcode(context, UserState().userPhysicalCard.value),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               decoration: BoxDecoration(
@@ -518,55 +525,70 @@ class _HomeScreenState extends State<HomeScreen> {
     required String pointsText,
     required bool isAccumulated,
   }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFBFB),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            offset: const Offset(0, 4),
-            blurRadius: 4,
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 45,
-            height: 45,
-            decoration: const BoxDecoration(
-              color: Color(0xFFDC2626),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.savings_outlined, color: Colors.white, size: 22),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Дата', style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 11)),
-              Text(date, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-            ],
-          ),
-          const Spacer(),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text('Сума: $totalAmount', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-              Text(
-                pointsText,
-                style: TextStyle(
-                  color: isAccumulated ? Colors.green : Colors.red,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          debugPrint('==> HISTORY TAP SUCCESS!');
+          Navigator.push(
+            context,
+            createSmoothRoute(const ReceiptDetailsScreen()),
+          );
+        },
+        borderRadius: BorderRadius.circular(16),
+        splashColor: Colors.red.withOpacity(0.1),
+        highlightColor: Colors.red.withOpacity(0.05),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFFBFB),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                offset: const Offset(0, 4),
+                blurRadius: 4,
               ),
             ],
           ),
-        ],
+          child: Row(
+            children: [
+              Container(
+                width: 45,
+                height: 45,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFDC2626),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.savings_outlined, color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Дата', style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 11)),
+                  Text(date, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                ],
+              ),
+              const Spacer(),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text('Сума: $totalAmount', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  Text(
+                    pointsText,
+                    style: TextStyle(
+                      color: isAccumulated ? Colors.green : Colors.red,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

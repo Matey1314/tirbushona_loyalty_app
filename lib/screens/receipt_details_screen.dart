@@ -7,14 +7,45 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 class ReceiptDetailsScreen extends StatefulWidget {
-  const ReceiptDetailsScreen({super.key});
+  final String? transactionDate;
+  final String? totalAmount;
+  final String? clientName;
+  final String? cardNumber;
+  final String? accruedPoints;
+  final String? availablePoints;
+
+  const ReceiptDetailsScreen({
+    super.key,
+    this.transactionDate,
+    this.totalAmount,
+    this.clientName,
+    this.cardNumber,
+    this.accruedPoints,
+    this.availablePoints,
+  });
 
   @override
   State<ReceiptDetailsScreen> createState() => _ReceiptDetailsScreenState();
 }
 
 class _ReceiptDetailsScreenState extends State<ReceiptDetailsScreen> {
-  final String _receiptText = '''
+  late String _receiptText;
+
+  @override
+  void initState() {
+    super.initState();
+    _generateReceiptText();
+  }
+
+  void _generateReceiptText() {
+    final date = widget.transactionDate ?? '05-03-2026                 09:30:07';
+    final amount = widget.totalAmount ?? '17.24';
+    final clientName = widget.clientName ?? 'Матей Пандъров';
+    final cardNumber = widget.cardNumber ?? '1352';
+    final accrued = widget.accruedPoints ?? '0.86';
+    final available = widget.availablePoints ?? '14.32';
+    
+    _receiptText = '''
 M.C ИНЖЕНЕРИНГ ООД
 София, жк. "ЛАГЕРА"
 ИМЕ МАГАЗИН
@@ -35,20 +66,20 @@ M.C ИНЖЕНЕРИНГ ООД
 1x 11,90                         11.90
 ------------------------------------------
 НАЧИН НА ПЛАЩАНЕ       В БРОЙ / КАРТА
-ОБЩА СУМА ЕВРО                  17.24
+ОБЩА СУМА ЕВРО                  $amount
 ------------------------------------------
 ЕЛЕКТРОНЕН ПОРТФЕЙЛ
 
-Клиент:                Матей Пандъров
-Карта №:                         1352
-Натрупано:                       0.86
-Налично:                        14.32
-05-03-2026                 09:30:07
+Клиент:                $clientName
+Карта №:                         $cardNumber
+Натрупано:                       $accrued
+Налично:                        $available
+$date
 ------------------------------------------
 ФИСКАЛЕН БОН
 ''';
+  }
 
-  // 1. Core PDF Generator
   Future<Uint8List> _generatePdf() async {
     final pdf = pw.Document();
     pdf.addPage(
@@ -372,8 +403,8 @@ M.C ИНЖЕНЕРИНГ ООД
                     // Total Amount (Large & Bold)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: const [
-                        Text(
+                      children: [
+                        const Text(
                           'ОБЩА СУМА ЕВРО',
                           style: TextStyle(
                             fontFamily: 'monospace',
@@ -384,8 +415,8 @@ M.C ИНЖЕНЕРИНГ ООД
                           ),
                         ),
                         Text(
-                          '17.24',
-                          style: TextStyle(
+                          widget.totalAmount ?? '17.24',
+                          style: const TextStyle(
                             fontFamily: 'monospace',
                             color: Colors.black,
                             fontSize: 13,
@@ -424,27 +455,27 @@ M.C ИНЖЕНЕРИНГ ООД
                     // Wallet Metrics (Space-between Rows)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: const [
-                        Text(
+                      children: [
+                        const Text(
                           'Клиент:',
                           style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
                         ),
                         Text(
-                          'Матей Пандъров',
-                          style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                          widget.clientName ?? 'Матей Пандъров',
+                          style: const TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
                         ),
                       ],
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: const [
-                        Text(
+                      children: [
+                        const Text(
                           'Карта №:',
                           style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
                         ),
                         Text(
-                          '1352',
-                          style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                          widget.cardNumber ?? '1352',
+                          style: const TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
                         ),
                       ],
                     ),
@@ -455,35 +486,40 @@ M.C ИНЖЕНЕРИНГ ООД
                           'Натрупано:',
                           style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
                         ),
-                        Text(
-                          '0.86',
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Натрупано:',
                           style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                        ),
+                        Text(
+                          widget.accruedPoints ?? '0.86',
+                          style: const TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
                         ),
                       ],
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: const [
-                        Text(
+                      children: [
+                        const Text(
                           'Налично:',
                           style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
                         ),
                         Text(
-                          '14.32',
-                          style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                          widget.availablePoints ?? '14.32',
+                          style: const TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
                         ),
                       ],
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: const [
+                      children: [
                         Text(
-                          '05-03-2026',
-                          style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
-                        ),
-                        Text(
-                          '09:30:07',
-                          style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                          widget.transactionDate ?? '05-03-2026                 09:30:07',
+                          style: const TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
                         ),
                       ],
                     ),
