@@ -3,6 +3,7 @@ import 'package:barcode_widget/barcode_widget.dart';
 import 'package:tirbushona_loyalty_app/core/theme/app_colors.dart';
 import 'package:tirbushona_loyalty_app/screens/cards_screen.dart';
 import 'package:tirbushona_loyalty_app/screens/history_screen.dart';
+import 'package:tirbushona_loyalty_app/screens/settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,20 +23,12 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: const Color(0xFFE9EDF4),
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
-        switchInCurve: Curves.easeOutCubic,
-        switchOutCurve: Curves.easeInCubic,
-        child: _selectedIndex == 0
-            ? _buildHomeContent()
-            : _selectedIndex == 1
-                ? const CardsScreen()
-                : _selectedIndex == 2
-                    ? const HistoryScreen()
-                    : Center(
-                        child: Text(
-                          _selectedIndex == 3 ? 'Профил' : 'История',
-                          style: const TextStyle(fontSize: 18),
-                        ),
-                      ),
+        switchInCurve: Curves.easeInOutCubic,
+        switchOutCurve: Curves.easeInOutCubic,
+        child: KeyedSubtree(
+          key: ValueKey<int>(_selectedIndex),
+          child: _buildScreenContent(),
+        ),
       ),
 
       // Pixel Perfect Navigation Bar
@@ -64,6 +57,21 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildScreenContent() {
+    switch (_selectedIndex) {
+      case 0:
+        return _buildHomeContent();
+      case 1:
+        return const CardsScreen();
+      case 2:
+        return const HistoryScreen();
+      case 3:
+        return const SettingsScreen();
+      default:
+        return _buildHomeContent();
+    }
   }
 
   Widget _buildHomeContent() {
