@@ -1,4 +1,10 @@
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart'; // Core PDF types
+import 'package:pdf/widgets.dart' as pw; // PDF layout widgets
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 class ReceiptDetailsScreen extends StatefulWidget {
   const ReceiptDetailsScreen({super.key});
@@ -8,785 +14,523 @@ class ReceiptDetailsScreen extends StatefulWidget {
 }
 
 class _ReceiptDetailsScreenState extends State<ReceiptDetailsScreen> {
+  final String _receiptText = '''
+M.C ИНЖЕНЕРИНГ ООД
+София, жк. "ЛАГЕРА"
+ИМЕ МАГАЗИН
+АДРЕС МАГАЗИН
+ЗДДС № BG130863654
+
+ИМЕ ОПЕРАТОР
+УНП: ED303495-0043-0015531
+------------------------------------------
+Терминал №1             Сист. № 407970
+Начало: 09:29              Край: 09:30
+------------------------------------------
+ИМЕ НА ПРОДУКТА
+2x 0,86                           1.72
+ИМЕ НА ПРОДУКТА
+1x 1,90                           1.90
+ИМЕ НА ПРОДУКТА
+1x 11,90                         11.90
+------------------------------------------
+НАЧИН НА ПЛАЩАНЕ       В БРОЙ / КАРТА
+ОБЩА СУМА ЕВРО                  17.24
+------------------------------------------
+ЕЛЕКТРОНЕН ПОРТФЕЙЛ
+
+Клиент:                Матей Пандъров
+Карта №:                         1352
+Натрупано:                       0.86
+Налично:                        14.32
+05-03-2026                 09:30:07
+------------------------------------------
+ФИСКАЛЕН БОН
+''';
+
+  // 1. Core PDF Generator
+  Future<Uint8List> _generatePdf() async {
+    final pdf = pw.Document();
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.roll80, // Receipt roll width format
+        build: (pw.Context context) {
+          return pw.Padding(
+            padding: const pw.EdgeInsets.all(10),
+            child: pw.Text(
+              _receiptText,
+              style: pw.TextStyle(
+                font: pw.Font.courier(),
+                fontSize: 11,
+                lineSpacing: 2,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+    return pdf.save();
+  }
+
+  // 2. Clear Download Action
+  Future<void> _downloadPdf() async {
+    try {
+      final bytes = await _generatePdf();
+      final directory = await getApplicationDocumentsDirectory();
+      final file = File('${directory.path}/khasov_bon.pdf');
+      await file.writeAsBytes(bytes);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Файлът е запазен успешно в: ${file.path}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      _showErrorSnackBar('Грешка при сваляне: $e');
+    }
+  }
+
+  // 3. Clear Share Action
+  Future<void> _sharePdf() async {
+    try {
+      final bytes = await _generatePdf();
+      final directory = await getTemporaryDirectory();
+      final file = File('${directory.path}/khasov_bon.pdf');
+      await file.writeAsBytes(bytes);
+
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'Моят електронен касов бон от Мирбушона',
+      );
+    } catch (e) {
+      _showErrorSnackBar('Грешка при споделяне: $e');
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFE9EDF4),
       appBar: AppBar(
+        title: const Text('Електронен касов бон'),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: GestureDetector(
-          onTap: () => Navigator.pop(context),
-          child: const Icon(
-            Icons.arrow_back,
-            color: Colors.black,
-            size: 24,
-          ),
-        ),
-        title: const Text(
-          'Електронен касов бон',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        centerTitle: false,
+        foregroundColor: Colors.black,
       ),
-      body: SafeArea(
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           children: [
-            // Action Buttons Row
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // "Свали PDF" Button - Red
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [
-                            Color(0xFFDC2626),
-                            Color(0xFFB91C1C),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFFDC2626).withOpacity(0.3),
-                            offset: const Offset(0, 4),
-                            blurRadius: 12,
-                          ),
-                        ],
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: () {
-                            // TODO: Implement PDF download functionality
-                          },
-                          borderRadius: BorderRadius.circular(24),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16.0,
-                              vertical: 12.0,
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(
-                                  Icons.file_download,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                                const Text(
-                                  'Свали PDF',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+            // Top Active Action Row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _downloadPdf,
+                  icon: const Icon(Icons.file_download, color: Colors.white),
+                  label: const Text('Свали PDF', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFDC2626),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                   ),
-                  const SizedBox(width: 12),
-
-                  // "Сподели PDF" Button - Disabled (Light Grey)
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE5E7EB),
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            offset: const Offset(0, 2),
-                            blurRadius: 8,
-                          ),
-                        ],
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: () {
-                            // TODO: Implement PDF share functionality
-                          },
-                          borderRadius: BorderRadius.circular(24),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16.0,
-                              vertical: 12.0,
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(
-                                  Icons.share_outlined,
-                                  color: Color(0xFF9CA3AF),
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                                const Text(
-                                  'Сподели PDF',
-                                  style: TextStyle(
-                                    color: Color(0xFF6B7280),
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton.icon(
+                  onPressed: _sharePdf,
+                  icon: const Icon(Icons.share, color: Colors.white),
+                  label: const Text('Сподели PDF', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
+            const SizedBox(height: 30),
 
-            // Receipt Canvas - Scrollable White Card
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                child: SingleChildScrollView(
-                  child: Card(
-                    elevation: 4,
-                    shadowColor: Colors.black.withOpacity(0.15),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+            // Plain White Receipt Layout
+            Center(
+              child: Container(
+                width: 335,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
                     ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Logo
+                    Center(
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        height: 50,
+                        errorBuilder: (c, e, s) => const Text(
+                          'МИРБУШОНА',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.red),
+                        ),
                       ),
-                      padding: const EdgeInsets.all(24.0),
-                      child: Center(
-                        child: SizedBox(
-                          width: 335,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              // ======== HEADER LOGO ========
-                              Center(
-                                child: Image.asset(
-                                  'assets/images/logo.png',
-                                  height: 60,
-                                  fit: BoxFit.contain,
-                                  errorBuilder: (context, error, stackTrace) =>
-                                      const Icon(
-                                    Icons.credit_card,
-                                    size: 60,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
+                    ),
+                    const SizedBox(height: 15),
 
-                              // ======== MERCHANT METADATA (CENTERED) ========
-                              Text(
-                                'М.С ИНЖЕНЕРИНГ ООД',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontFamily: 'monospace',
-                                  color: Colors.black,
-                                  fontSize: 13,
-                                  height: 1.4,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              Text(
-                                'София, жк. "ЛАГЕРА"',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontFamily: 'monospace',
-                                  color: Colors.black,
-                                  fontSize: 13,
-                                  height: 1.4,
-                                ),
-                              ),
-                              Text(
-                                'ИМЕ МАГАЗИН',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontFamily: 'monospace',
-                                  color: Colors.black,
-                                  fontSize: 13,
-                                  height: 1.4,
-                                ),
-                              ),
-                              Text(
-                                'АДРЕС МАГАЗИН',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontFamily: 'monospace',
-                                  color: Colors.black,
-                                  fontSize: 13,
-                                  height: 1.4,
-                                ),
-                              ),
-                              Text(
-                                'ЗДДС № BG130863654',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontFamily: 'monospace',
-                                  color: Colors.black,
-                                  fontSize: 13,
-                                  height: 1.4,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
+                    // Merchant Metadata (Center-aligned)
+                    const Center(
+                      child: Text(
+                        'М.С ИНЖЕНЕРИНГ ООД',
+                        style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const Center(
+                      child: Text(
+                        'София, жк. "ЛАГЕРА"',
+                        style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                      ),
+                    ),
+                    const Center(
+                      child: Text(
+                        'ИМЕ МАГАЗИН',
+                        style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                      ),
+                    ),
+                    const Center(
+                      child: Text(
+                        'АДРЕС МАГАЗИН',
+                        style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                      ),
+                    ),
+                    const Center(
+                      child: Text(
+                        'ЗДДС № BG130863654',
+                        style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
 
-                              // ======== DIVIDER ========
-                              Text(
-                                '------------------------------------------',
-                                style: TextStyle(
-                                  fontFamily: 'monospace',
-                                  color: Colors.black,
-                                  fontSize: 13,
-                                  height: 1.4,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
+                    // Divider 1
+                    const Center(
+                      child: Text(
+                        '------------------------------------------',
+                        style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
 
-                              // ======== OPERATOR & SESSION METADATA ========
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'ИМЕ ОПЕРАТОР',
-                                      style: TextStyle(
-                                        fontFamily: 'monospace',
-                                        color: Colors.black,
-                                        fontSize: 13,
-                                        height: 1.4,
-                                      ),
-                                    ),
-                                    Text(
-                                      'УНП: ED303495-0043-0015531',
-                                      style: TextStyle(
-                                        fontFamily: 'monospace',
-                                        color: Colors.black,
-                                        fontSize: 13,
-                                        height: 1.4,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 8),
+                    // Operator & Terminal Info (Left-aligned)
+                    const Text(
+                      'ИМЕ ОПЕРАТОР',
+                      style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4, fontWeight: FontWeight.bold),
+                    ),
+                    const Text(
+                      'УНП: ED303495-0043-0015531',
+                      style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                    ),
+                    const SizedBox(height: 8),
 
-                              // Terminal & System Row
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Терминал    №1',
-                                    style: TextStyle(
-                                      fontFamily: 'monospace',
-                                      color: Colors.black,
-                                      fontSize: 13,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Сист. № 407970',
-                                    style: TextStyle(
-                                      fontFamily: 'monospace',
-                                      color: Colors.black,
-                                      fontSize: 13,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                    // Session Metrics (Space-between)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: const [
+                        Text(
+                          'Терминал    №1',
+                          style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                        ),
+                        Text(
+                          'Сист. № 407970',
+                          style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: const [
+                        Text(
+                          'Начало: 09:29',
+                          style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                        ),
+                        Text(
+                          'Край: 09:30',
+                          style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
 
-                              // Time Row
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Начало: 09:29',
-                                    style: TextStyle(
-                                      fontFamily: 'monospace',
-                                      color: Colors.black,
-                                      fontSize: 13,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Край: 09:30',
-                                    style: TextStyle(
-                                      fontFamily: 'monospace',
-                                      color: Colors.black,
-                                      fontSize: 13,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
+                    // Divider 2
+                    const Center(
+                      child: Text(
+                        '------------------------------------------',
+                        style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
 
-                              // ======== DIVIDER ========
-                              Text(
-                                '------------------------------------------',
-                                style: TextStyle(
-                                  fontFamily: 'monospace',
-                                  color: Colors.black,
-                                  fontSize: 13,
-                                  height: 1.4,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
+                    // Product 1: БАТЕРИЯ АЛКАЛНА АА
+                    const Text(
+                      'БАТЕРИЯ АЛКАЛНА АА',
+                      style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4, fontWeight: FontWeight.w500),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: const [
+                        Text(
+                          '2x 0,86',
+                          style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                        ),
+                        Text(
+                          '1.72',
+                          style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
 
-                              // ======== PRODUCTS LIST ========
-                              // Product 1
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'БАТЕРИЯ АЛКАЛНА АА',
-                                    style: TextStyle(
-                                      fontFamily: 'monospace',
-                                      color: Colors.black,
-                                      fontSize: 13,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        '2x 0,86',
-                                        style: TextStyle(
-                                          fontFamily: 'monospace',
-                                          color: Colors.black,
-                                          fontSize: 13,
-                                          height: 1.4,
-                                        ),
-                                      ),
-                                      Text(
-                                        '1,72',
-                                        style: TextStyle(
-                                          fontFamily: 'monospace',
-                                          color: Colors.black,
-                                          fontSize: 13,
-                                          height: 1.4,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
+                    // Product 2: ГУМЕНА ТОПКА СКОК
+                    const Text(
+                      'ГУМЕНА ТОПКА СКОК',
+                      style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4, fontWeight: FontWeight.w500),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: const [
+                        Text(
+                          '1x 1,90',
+                          style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                        ),
+                        Text(
+                          '1.90',
+                          style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
 
-                              // Product 2
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'ГУМЕНА ТОПКА СКОК',
-                                    style: TextStyle(
-                                      fontFamily: 'monospace',
-                                      color: Colors.black,
-                                      fontSize: 13,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        '1x 1,90',
-                                        style: TextStyle(
-                                          fontFamily: 'monospace',
-                                          color: Colors.black,
-                                          fontSize: 13,
-                                          height: 1.4,
-                                        ),
-                                      ),
-                                      Text(
-                                        '1,90',
-                                        style: TextStyle(
-                                          fontFamily: 'monospace',
-                                          color: Colors.black,
-                                          fontSize: 13,
-                                          height: 1.4,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
+                    // Product 3: МАРКЕРИ КОМПЛЕКТ
+                    const Text(
+                      'МАРКЕРИ КОМПЛЕКТ',
+                      style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4, fontWeight: FontWeight.w500),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: const [
+                        Text(
+                          '1x 11,90',
+                          style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                        ),
+                        Text(
+                          '11.90',
+                          style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
 
-                              // Product 3
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'МАРКЕРИ КОМПЛЕКТ',
-                                    style: TextStyle(
-                                      fontFamily: 'monospace',
-                                      color: Colors.black,
-                                      fontSize: 13,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        '1x 5,62',
-                                        style: TextStyle(
-                                          fontFamily: 'monospace',
-                                          color: Colors.black,
-                                          fontSize: 13,
-                                          height: 1.4,
-                                        ),
-                                      ),
-                                      Text(
-                                        '5,62',
-                                        style: TextStyle(
-                                          fontFamily: 'monospace',
-                                          color: Colors.black,
-                                          fontSize: 13,
-                                          height: 1.4,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
+                    // Divider 3
+                    const Center(
+                      child: Text(
+                        '------------------------------------------',
+                        style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
 
-                              // Product 4
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'РАНИЦА УЧИЛИЩНА',
-                                    style: TextStyle(
-                                      fontFamily: 'monospace',
-                                      color: Colors.black,
-                                      fontSize: 13,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        '1x 8,00',
-                                        style: TextStyle(
-                                          fontFamily: 'monospace',
-                                          color: Colors.black,
-                                          fontSize: 13,
-                                          height: 1.4,
-                                        ),
-                                      ),
-                                      Text(
-                                        '8,00',
-                                        style: TextStyle(
-                                          fontFamily: 'monospace',
-                                          color: Colors.black,
-                                          fontSize: 13,
-                                          height: 1.4,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
+                    // Payment Method
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: const [
+                        Text(
+                          'НАЧИН НА ПЛАЩАНЕ',
+                          style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          'В БРОЙ / КАРТА',
+                          style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
 
-                              // ======== DIVIDER ========
-                              Text(
-                                '------------------------------------------',
-                                style: TextStyle(
-                                  fontFamily: 'monospace',
-                                  color: Colors.black,
-                                  fontSize: 13,
-                                  height: 1.4,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
+                    // Total Amount (Large & Bold)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: const [
+                        Text(
+                          'ОБЩА СУМА ЕВРО',
+                          style: TextStyle(
+                            fontFamily: 'monospace',
+                            color: Colors.black,
+                            fontSize: 13,
+                            height: 1.4,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          '17.24',
+                          style: TextStyle(
+                            fontFamily: 'monospace',
+                            color: Colors.black,
+                            fontSize: 13,
+                            height: 1.4,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
 
-                              // ======== PAYMENT METHOD ========
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'НАЧИН НА ПЛАЩАНЕ',
-                                    style: TextStyle(
-                                      fontFamily: 'monospace',
-                                      color: Colors.black,
-                                      fontSize: 13,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                  Text(
-                                    'В БРОЙ / КАРТА',
-                                    style: TextStyle(
-                                      fontFamily: 'monospace',
-                                      color: Colors.black,
-                                      fontSize: 13,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
+                    // Upper Divider
+                    const Center(
+                      child: Text(
+                        '------------------------------------------',
+                        style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
 
-                              // ======== TOTAL PRICE (BOLD & LARGE) ========
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'ОБЩА СУМА ЕВРО',
-                                    style: TextStyle(
-                                      fontFamily: 'monospace',
-                                      color: Colors.black,
-                                      fontSize: 13,
-                                      height: 1.4,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    '17.24',
-                                    style: TextStyle(
-                                      fontFamily: 'monospace',
-                                      color: Colors.black,
-                                      fontSize: 16,
-                                      height: 1.4,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
+                    // Wallet Heading
+                    const Center(
+                      child: Text(
+                        'ЕЛЕКТРОНЕН ПОРТФЕЙЛ',
+                        style: TextStyle(
+                          fontFamily: 'monospace',
+                          color: Colors.black,
+                          fontSize: 13,
+                          height: 1.4,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
 
-                              // ======== DIVIDER ========
-                              Text(
-                                '------------------------------------------',
-                                style: TextStyle(
-                                  fontFamily: 'monospace',
-                                  color: Colors.black,
-                                  fontSize: 13,
-                                  height: 1.4,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
+                    // Wallet Metrics (Space-between Rows)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: const [
+                        Text(
+                          'Клиент:',
+                          style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                        ),
+                        Text(
+                          'Матей Пандъров',
+                          style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: const [
+                        Text(
+                          'Карта №:',
+                          style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                        ),
+                        Text(
+                          '1352',
+                          style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: const [
+                        Text(
+                          'Натрупано:',
+                          style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                        ),
+                        Text(
+                          '0.86',
+                          style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: const [
+                        Text(
+                          'Налично:',
+                          style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                        ),
+                        Text(
+                          '14.32',
+                          style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: const [
+                        Text(
+                          '05-03-2026',
+                          style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                        ),
+                        Text(
+                          '09:30:07',
+                          style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
 
-                              // ======== LOYALTY WALLET ========
-                              Text(
-                                'ЕЛЕКТРОНЕН ПОРТФЕЙЛ',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontFamily: 'monospace',
-                                  color: Colors.black,
-                                  fontSize: 13,
-                                  height: 1.4,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
+                    // Lower Divider
+                    const Center(
+                      child: Text(
+                        '------------------------------------------',
+                        style: TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 13, height: 1.4),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
 
-                              // Client Info
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Клиент:',
-                                    style: TextStyle(
-                                      fontFamily: 'monospace',
-                                      color: Colors.black,
-                                      fontSize: 13,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Матей Пандъров',
-                                    style: TextStyle(
-                                      fontFamily: 'monospace',
-                                      color: Colors.black,
-                                      fontSize: 13,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                ],
-                              ),
-
-                              // Card Number
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Карта №:',
-                                    style: TextStyle(
-                                      fontFamily: 'monospace',
-                                      color: Colors.black,
-                                      fontSize: 13,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                  Text(
-                                    '1352',
-                                    style: TextStyle(
-                                      fontFamily: 'monospace',
-                                      color: Colors.black,
-                                      fontSize: 13,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                ],
-                              ),
-
-                              // Points Accumulated
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Натрупано:',
-                                    style: TextStyle(
-                                      fontFamily: 'monospace',
-                                      color: Colors.black,
-                                      fontSize: 13,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                  Text(
-                                    '0.86',
-                                    style: TextStyle(
-                                      fontFamily: 'monospace',
-                                      color: Colors.black,
-                                      fontSize: 13,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                ],
-                              ),
-
-                              // Available Balance
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Налично:',
-                                    style: TextStyle(
-                                      fontFamily: 'monospace',
-                                      color: Colors.black,
-                                      fontSize: 13,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                  Text(
-                                    '14.32',
-                                    style: TextStyle(
-                                      fontFamily: 'monospace',
-                                      color: Colors.black,
-                                      fontSize: 13,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-
-                              // Date & Time Row
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    '05-03-2026',
-                                    style: TextStyle(
-                                      fontFamily: 'monospace',
-                                      color: Colors.black,
-                                      fontSize: 13,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                  Text(
-                                    '09:30:07',
-                                    style: TextStyle(
-                                      fontFamily: 'monospace',
-                                      color: Colors.black,
-                                      fontSize: 13,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-
-                              // ======== DIVIDER ========
-                              Text(
-                                '------------------------------------------',
-                                style: TextStyle(
-                                  fontFamily: 'monospace',
-                                  color: Colors.black,
-                                  fontSize: 13,
-                                  height: 1.4,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-
-                              // ======== QR CODE PLACEHOLDER ========
-                              Container(
-                                width: 120,
-                                height: 120,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[100],
-                                  border: Border.all(
-                                    color: Colors.grey[300]!,
-                                    width: 1,
-                                  ),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    'QR CODE',
-                                    style: TextStyle(
-                                      color: Colors.grey[400],
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-
-                              // ======== FISCAL TEXT ========
-                              Text(
-                                'ФИСКАЛЕН БОН',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontFamily: 'monospace',
-                                  color: Colors.black,
-                                  fontSize: 13,
-                                  height: 1.4,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.2,
-                                ),
-                              ),
-                              const SizedBox(height: 24),
-                            ],
+                    // Centered QR Code Block
+                    Center(
+                      child: Container(
+                        width: 130,
+                        height: 130,
+                        child: Image.asset(
+                          'assets/images/qr_code.png',
+                          fit: BoxFit.contain,
+                          errorBuilder: (c, e, s) => Container(
+                            color: Colors.grey[200],
+                            child: const Icon(Icons.qr_code_2, size: 80, color: Colors.black),
                           ),
                         ),
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 8),
+
+                    // Centered Fiscal Footer Message
+                    const Center(
+                      child: Text(
+                        'ФИСКАЛЕН БОН',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: 'monospace',
+                          color: Colors.black,
+                          fontSize: 13,
+                          height: 1.4,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
