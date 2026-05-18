@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tirbushona_loyalty_app/core/theme/app_colors.dart';
+import 'package:tirbushona_loyalty_app/main.dart';
 import 'package:tirbushona_loyalty_app/widgets/primary_button.dart';
 import 'home_screen.dart';
 
@@ -100,9 +101,7 @@ class SuccessScreen extends StatelessWidget {
                       label: 'Продължи',
                       onPressed: () {
                         Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(
-                            builder: (context) => const HomeScreen(),
-                          ),
+                          createSmoothRoute(const HomeScreen()),
                         );
                       },
                     ),

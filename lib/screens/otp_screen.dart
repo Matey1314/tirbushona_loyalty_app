@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tirbushona_loyalty_app/core/theme/app_colors.dart';
+import 'package:tirbushona_loyalty_app/main.dart';
 import 'package:tirbushona_loyalty_app/widgets/primary_button.dart';
 import 'package:tirbushona_loyalty_app/widgets/bouncing_dots_indicator.dart';
 import 'success_screen.dart';
@@ -72,9 +73,7 @@ class _OtpScreenState extends State<OtpScreen>
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) {
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => const SuccessScreen(),
-            ),
+            createSmoothRoute(const SuccessScreen()),
           );
         }
       });

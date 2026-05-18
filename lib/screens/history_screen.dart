@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tirbushona_loyalty_app/core/theme/app_colors.dart';
+import 'package:tirbushona_loyalty_app/main.dart';
 import 'package:tirbushona_loyalty_app/screens/receipt_details_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -225,8 +226,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 onTap: () {
                                   Navigator.push(
                                     context,
-                                    MaterialPageRoute(
-                                      builder: (context) => const ReceiptDetailsScreen(),
+                                    createSmoothRoute(
+                                      const ReceiptDetailsScreen(),
                                     ),
                                   );
                                 },

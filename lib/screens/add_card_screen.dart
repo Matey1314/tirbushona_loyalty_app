@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tirbushona_loyalty_app/main.dart';
 import 'add_card_details_screen.dart';
 
 class AddCardScreen extends StatefulWidget {
@@ -134,9 +135,8 @@ class _AddCardScreenState extends State<AddCardScreen> {
                           onTap: () {
                             Navigator.push(
                               context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    AddCardDetailsScreen(brand: brand),
+                              createSmoothRoute(
+                                AddCardDetailsScreen(brand: brand),
                               ),
                             );
                           },

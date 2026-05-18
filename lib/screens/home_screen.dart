@@ -20,18 +20,23 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFE9EDF4),
-      body: _selectedIndex == 0
-          ? _buildHomeContent()
-          : _selectedIndex == 1
-              ? const CardsScreen()
-              : _selectedIndex == 2
-                  ? const HistoryScreen()
-                  : Center(
-                      child: Text(
-                        _selectedIndex == 3 ? 'Профил' : 'История',
-                        style: const TextStyle(fontSize: 18),
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        child: _selectedIndex == 0
+            ? _buildHomeContent()
+            : _selectedIndex == 1
+                ? const CardsScreen()
+                : _selectedIndex == 2
+                    ? const HistoryScreen()
+                    : Center(
+                        child: Text(
+                          _selectedIndex == 3 ? 'Профил' : 'История',
+                          style: const TextStyle(fontSize: 18),
+                        ),
                       ),
-                    ),
+      ),
 
       // Pixel Perfect Navigation Bar
       bottomNavigationBar: Container(

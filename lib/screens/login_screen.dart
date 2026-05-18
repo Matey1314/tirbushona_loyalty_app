@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tirbushona_loyalty_app/core/theme/app_colors.dart';
+import 'package:tirbushona_loyalty_app/main.dart';
 import 'package:tirbushona_loyalty_app/widgets/primary_button.dart';
 import 'package:tirbushona_loyalty_app/screens/otp_screen.dart';
 
@@ -40,8 +41,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
     // Navigate to OTP Screen immediately
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const OtpScreen(),
+      createSmoothRoute(
+        const OtpScreen(),
       ),
     );
   }

@@ -18,7 +18,7 @@ class CustomPageTransitionsBuilder extends PageTransitionsBuilder {
     // Smooth ease-out curve for elegant transition
     final curvedAnimation = CurvedAnimation(
       parent: animation,
-      curve: Curves.fastOutSlowIn,
+      curve: Curves.easeInOutCubic,
     );
 
     // Combine Fade and subtle Slide transition for premium feel
@@ -26,13 +26,41 @@ class CustomPageTransitionsBuilder extends PageTransitionsBuilder {
       opacity: curvedAnimation,
       child: SlideTransition(
         position: Tween<Offset>(
-          begin: const Offset(0.05, 0.0), // Very subtle slide from the right
+          begin: const Offset(0.08, 0.0), // Very elegant, subtle slide from the right edge
           end: Offset.zero,
         ).animate(curvedAnimation),
         child: child,
       ),
     );
   }
+}
+
+/// Global Smooth Route Builder - Forces ultra-smooth transitions on all navigations
+/// Perfect for tab switches, deep links, and all screen transitions
+Route createSmoothRoute(Widget screen) {
+  return PageRouteBuilder(
+    pageBuilder: (context, animation, secondaryAnimation) => screen,
+    transitionDuration: const Duration(milliseconds: 350), // Perfect duration for perceived performance
+    reverseTransitionDuration: const Duration(milliseconds: 250),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      // Ultra-smooth ease curve that softens the beginning and end of the transition
+      final curvedAnimation = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeInOutCubic,
+      );
+
+      return FadeTransition(
+        opacity: curvedAnimation,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0.08, 0.0), // Very elegant, subtle slide from the right edge
+            end: Offset.zero,
+          ).animate(curvedAnimation),
+          child: child,
+        ),
+      );
+    },
+  );
 }
 
 void main() {
@@ -60,6 +88,8 @@ class TirbushonaApp extends StatelessWidget {
             TargetPlatform.iOS: CustomPageTransitionsBuilder(),
           },
         ),
+        // Ensure smooth animations throughout the app
+        splashFactory: InkRipple.splashFactory,
       ),
       home: const LoadingScreen(),
     );

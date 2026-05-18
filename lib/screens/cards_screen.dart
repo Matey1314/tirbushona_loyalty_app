@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tirbushona_loyalty_app/core/theme/app_colors.dart';
 import 'package:tirbushona_loyalty_app/services/cards_service.dart';
+import 'package:tirbushona_loyalty_app/main.dart';
 import 'add_card_screen.dart';
 import 'card_display_screen.dart';
 
@@ -107,12 +108,7 @@ class _CardsScreenState extends State<CardsScreen> {
               // Add Card Button (Narrowed and Centered)
               GestureDetector(
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AddCardScreen(),
-                    ),
-                  );
+                  Navigator.push(context, createSmoothRoute(const AddCardScreen()));
                 },
                 child: Container(
                   width: 180,
@@ -174,12 +170,7 @@ class _CardsScreenState extends State<CardsScreen> {
           if (index == cards.length) {
             return GestureDetector(
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const AddCardScreen(),
-                  ),
-                );
+                Navigator.push(context, createSmoothRoute(const AddCardScreen()));
               },
               child: Container(
                 decoration: BoxDecoration(
@@ -232,12 +223,7 @@ class _CardsScreenState extends State<CardsScreen> {
           final card = cards[index];
           return InkWell(
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => CardDisplayScreen(card: card),
-                ),
-              );
+              Navigator.push(context, createSmoothRoute(CardDisplayScreen(card: card)));
             },
             child: Container(
               height: 120,

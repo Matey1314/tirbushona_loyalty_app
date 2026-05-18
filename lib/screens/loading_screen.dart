@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tirbushona_loyalty_app/main.dart';
 import 'login_screen.dart';
 
 class LoadingScreen extends StatefulWidget {
@@ -24,7 +25,7 @@ class _LoadingScreenState extends State<LoadingScreen>
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          createSmoothRoute(const LoginScreen()),
         );
       }
     });
