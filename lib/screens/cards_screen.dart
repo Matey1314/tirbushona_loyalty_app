@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:tirbushona_loyalty_app/core/theme/app_colors.dart';
 import 'package:tirbushona_loyalty_app/services/cards_service.dart';
 import 'package:tirbushona_loyalty_app/main.dart';
 import 'add_card_screen.dart';

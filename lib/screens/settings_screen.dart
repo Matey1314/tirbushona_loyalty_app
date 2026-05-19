@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:tirbushona_loyalty_app/core/theme/app_colors.dart';
 import 'package:tirbushona_loyalty_app/screens/profile_screen.dart';
 import 'package:tirbushona_loyalty_app/screens/preferences_screen.dart';
+import 'package:tirbushona_loyalty_app/screens/feedback_screen.dart';
+import 'package:tirbushona_loyalty_app/screens/about_screen.dart';
 import 'package:tirbushona_loyalty_app/main.dart' show createSmoothRoute;
 
 class SettingsScreen extends StatelessWidget {
@@ -140,14 +142,18 @@ class SettingsScreen extends StatelessWidget {
                     context: context,
                     icon: Icons.email_outlined,
                     label: 'Вашето мнение',
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.push(context, createSmoothRoute(const FeedbackScreen()));
+                    },
                   ),
                   const SizedBox(height: 12),
                   _buildMenuOption(
                     context: context,
                     icon: Icons.waves,
                     label: 'Относно Тирбушона',
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.push(context, createSmoothRoute(const AboutScreen()));
+                    },
                   ),
                   const SizedBox(height: 12),
                   _buildMenuOption(

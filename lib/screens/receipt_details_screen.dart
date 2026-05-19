@@ -536,7 +536,7 @@ $date
 
                     // Centered QR Code Block
                     Center(
-                      child: Container(
+                      child: SizedBox(
                         width: 130,
                         height: 130,
                         child: Image.asset(

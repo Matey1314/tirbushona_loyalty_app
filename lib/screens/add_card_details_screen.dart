@@ -322,7 +322,7 @@ class _AddCardDetailsScreenState extends State<AddCardDetailsScreen> {
     bool isNotes,
     Function(String) onSave,
   ) {
-    final TextEditingController _controller = TextEditingController();
+    final TextEditingController controller = TextEditingController();
 
     showModalBottomSheet(
       context: context,
@@ -354,7 +354,7 @@ class _AddCardDetailsScreenState extends State<AddCardDetailsScreen> {
                 ),
                 const SizedBox(height: 16),
                 TextField(
-                  controller: _controller,
+                  controller: controller,
                   maxLines: isNotes ? 3 : 1,
                   keyboardType:
                       isNotes ? TextInputType.text : TextInputType.number,
@@ -380,7 +380,7 @@ class _AddCardDetailsScreenState extends State<AddCardDetailsScreen> {
                 Center(
                   child: ElevatedButton(
                     onPressed: () {
-                      onSave(_controller.text);
+                      onSave(controller.text);
                       Navigator.pop(context);
                     },
                     style: ElevatedButton.styleFrom(

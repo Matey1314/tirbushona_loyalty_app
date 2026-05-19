@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tirbushona_loyalty_app/core/theme/app_colors.dart';
 
 class PreferencesScreen extends StatefulWidget {
@@ -20,6 +21,16 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
     _notifyAmount = true;
     _notifyReceipt = false;
     _darkMode = true;
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      // Defaulting to true for amount and false for receipt to match Figma baseline
+      _notifyAmount = prefs.getBool('notify_amount') ?? true;
+      _notifyReceipt = prefs.getBool('notify_receipt') ?? false;
+    });
   }
 
   @override
@@ -55,20 +66,24 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                     _buildPreferenceRow(
                       title: 'Известие за натрупана сума',
                       value: _notifyAmount,
-                      onChanged: (value) {
+                      onChanged: (bool newValue) async {
                         setState(() {
-                          _notifyAmount = value;
+                          _notifyAmount = newValue;
                         });
+                        final prefs = await SharedPreferences.getInstance();
+                        await prefs.setBool('notify_amount', newValue);
                       },
                     ),
                     const SizedBox(height: 16),
                     _buildPreferenceRow(
                       title: 'Известие нов електронен бон',
                       value: _notifyReceipt,
-                      onChanged: (value) {
+                      onChanged: (bool newValue) async {
                         setState(() {
-                          _notifyReceipt = value;
+                          _notifyReceipt = newValue;
                         });
+                        final prefs = await SharedPreferences.getInstance();
+                        await prefs.setBool('notify_receipt', newValue);
                       },
                     ),
                     const SizedBox(height: 16),
@@ -130,7 +145,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
           CupertinoSwitch(
             value: value,
             onChanged: onChanged,
-            activeColor: Colors.green,
+            activeTrackColor: Colors.green,
           ),
         ],
       ),
@@ -155,6 +170,12 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Настройките за известия са записани успешно!'),
+                duration: Duration(seconds: 2),
+              ),
+            );
             Navigator.pop(context);
           },
           borderRadius: BorderRadius.circular(12),

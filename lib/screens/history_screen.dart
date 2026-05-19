@@ -163,7 +163,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: categories.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
                   return _buildCategoryChip(categories[index]);
                 },
@@ -238,7 +238,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 ),
                               ),
                             );
-                          }).toList(),
+                          }),
                         ],
                       );
                     },

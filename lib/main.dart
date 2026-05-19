@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:tirbushona_loyalty_app/core/state/user_state.dart';
-import 'screens/login_screen.dart';
 import 'screens/loading_screen.dart';
 
 /// Custom Page Transitions Builder for smooth, premium fade and slide animations
