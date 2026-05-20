@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tirbushona_loyalty_app/core/state/user_state.dart';
 import 'screens/loading_screen.dart';
 
@@ -65,6 +66,13 @@ Route createSmoothRoute(Widget screen) {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Supabase with project credentials
+  await Supabase.initialize(
+    url: 'https://dcfpnxhmyuvokkfozpsh.supabase.co',
+    anonKey: 'sb_publishable_8loET95hH6Bo6u64zLuD7g_3CnCkTnA',
+  );
+  
   // Initialize global user state from SharedPreferences
   await UserState().initialize();
   runApp(const TirbushonaApp());
