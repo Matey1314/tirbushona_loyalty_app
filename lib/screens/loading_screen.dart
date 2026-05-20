@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tirbushona_loyalty_app/main.dart';
 import 'login_screen.dart';
+import 'home_screen.dart';
 
 class LoadingScreen extends StatefulWidget {
   const LoadingScreen({super.key});
@@ -21,11 +23,16 @@ class _LoadingScreenState extends State<LoadingScreen>
       vsync: this,
     )..repeat();
 
-    // Navigate to LoginScreen after 3 seconds
+    // Check for active session and navigate accordingly after 3 seconds
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
+        final session = Supabase.instance.client.auth.currentSession;
+        
+        // Route to HomeScreen if session exists, otherwise to LoginScreen
+        final nextScreen = session != null ? const HomeScreen() : const LoginScreen();
+        
         Navigator.of(context).pushReplacement(
-          createSmoothRoute(const LoginScreen()),
+          createSmoothRoute(nextScreen),
         );
       }
     });

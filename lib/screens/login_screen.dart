@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:tirbushona_loyalty_app/core/theme/app_colors.dart';
 import 'package:tirbushona_loyalty_app/main.dart';
+import 'package:tirbushona_loyalty_app/services/auth_service.dart';
 import 'package:tirbushona_loyalty_app/widgets/primary_button.dart';
 import 'package:tirbushona_loyalty_app/screens/otp_screen.dart';
+import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,26 +14,28 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController _codeController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
-  final bool _isLoading = false;
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  bool _isLoading = false;
+  final AuthService _authService = AuthService();
 
   @override
   void dispose() {
-    _codeController.dispose();
-    _phoneController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
-  void _handleNextPress() {
-    // Get the phone number and remove whitespace
-    String phoneNumber = _phoneController.text.replaceAll(' ', '').trim();
+  /// Handles the sign-in process
+  void _handleSignIn() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
 
-    // Validate: Check if empty or less than 9 characters
-    if (phoneNumber.isEmpty || phoneNumber.length < 9) {
+    // Validate inputs
+    if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Моля, въведете валиден телефонен номер.'),
+          content: const Text('Моля, въведете имейл и парола.'),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 3),
         ),
@@ -39,15 +43,63 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // Navigate to OTP Screen immediately
-    Navigator.of(context).push(
-      createSmoothRoute(
-        OtpScreen(
-          phoneNumber: _phoneController.text,
-          isPhoneChange: false,
+    // Basic email validation
+    if (!email.contains('@')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Моля, въведете валиден имейл адрес.'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
         ),
-      ),
-    );
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Sign in with email and password
+      await _authService.signIn(
+        email: email,
+        password: password,
+      );
+
+      // If successful, navigate to HomeScreen
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          createSmoothRoute(const HomeScreen()),
+        );
+      }
+    } on Exception catch (error) {
+      if (mounted) {
+        // Show error message in SnackBar
+        String errorMessage = 'Възникна грешка при вход. Опитайте отново.';
+        
+        if (error.toString().contains('Invalid login credentials')) {
+          errorMessage = 'Неправилен имейл или парола.';
+        } else if (error.toString().contains('User not found')) {
+          errorMessage = 'Потребителят не е намерен.';
+        } else if (error.toString().contains('Invalid email')) {
+          errorMessage = 'Невалиден имейл адрес.';
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -104,101 +156,95 @@ class _LoginScreenState extends State<LoginScreen> {
                     padding: const EdgeInsets.all(24),
                     child: Column(
                       children: [
-                        // Phone Input Fields Section
-                        Row(
+                        // Email Input Field
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Code Field
-                            Expanded(
-                              flex: 1,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Padding(
-                                    padding: EdgeInsets.only(bottom: 12.0),
-                                    child: Text(
-                                      'Код',
-                                      style: TextStyle(
-                                        color: AppColors.black,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ),
-                                  Container(
-                                    height: 56,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFE5E7EB),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: const [
-                                        Text(
-                                          '+359',
-                                          style: TextStyle(
-                                            color: AppColors.black,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                        SizedBox(width: 8),
-                                        Icon(
-                                          Icons.keyboard_arrow_down,
-                                          color: Color(0xFF6B7280),
-                                          size: 20,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
+                            const Padding(
+                              padding: EdgeInsets.only(bottom: 12.0),
+                              child: Text(
+                                'Имейл',
+                                style: TextStyle(
+                                  color: AppColors.black,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            // Phone Number Field
-                            Expanded(
-                              flex: 2,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Padding(
-                                    padding: EdgeInsets.only(bottom: 12.0),
-                                    child: Text(
-                                      'Телефонен номер',
-                                      style: TextStyle(
-                                        color: AppColors.black,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
+                            Container(
+                              height: 56,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE5E7EB),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: TextField(
+                                controller: _emailController,
+                                keyboardType: TextInputType.emailAddress,
+                                enabled: !_isLoading,
+                                style: const TextStyle(
+                                  color: AppColors.black,
+                                  fontSize: 16,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: 'пример@имейл.com',
+                                  hintStyle: const TextStyle(
+                                    color: Color(0xFFB0B9C8),
+                                    fontSize: 16,
                                   ),
-                                  Container(
-                                    height: 56,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFE5E7EB),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: TextField(
-                                      controller: _phoneController,
-                                      keyboardType: TextInputType.phone,
-                                      style: const TextStyle(
-                                        color: AppColors.black,
-                                        fontSize: 16,
-                                      ),
-                                      decoration: InputDecoration(
-                                        hintText: '0 8 9 9 8 8 3 5 2 2',
-                                        hintStyle: const TextStyle(
-                                          color: Color(0xFFB0B9C8),
-                                          fontSize: 16,
-                                        ),
-                                        border: InputBorder.none,
-                                        contentPadding: const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                          vertical: 16,
-                                        ),
-                                      ),
-                                    ),
+                                  border: InputBorder.none,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 16,
                                   ),
-                                ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // Password Input Field
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(bottom: 12.0),
+                              child: Text(
+                                'Парола',
+                                style: TextStyle(
+                                  color: AppColors.black,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            Container(
+                              height: 56,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE5E7EB),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: TextField(
+                                controller: _passwordController,
+                                obscureText: true,
+                                enabled: !_isLoading,
+                                style: const TextStyle(
+                                  color: AppColors.black,
+                                  fontSize: 16,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: 'Въведете вашата парола',
+                                  hintStyle: const TextStyle(
+                                    color: Color(0xFFB0B9C8),
+                                    fontSize: 16,
+                                  ),
+                                  border: InputBorder.none,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 16,
+                                  ),
+                                ),
                               ),
                             ),
                           ],
@@ -210,8 +256,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         SizedBox(
                           width: double.infinity,
                           child: PrimaryButton(
-                            label: 'Изпрати',
-                            onPressed: _handleNextPress,
+                            label: _isLoading ? 'Вход...' : 'Вход',
+                            onPressed: _isLoading ? null : _handleSignIn,
                             isLoading: _isLoading,
                           ),
                         ),
@@ -224,7 +270,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           text: const TextSpan(
                             children: [
                               TextSpan(
-                                text: 'С натискането на „Изпрати", Вие се съгласявате с нашите ',
+                                text: 'С натискането на „Вход", Вие се съгласявате с нашите ',
                                 style: TextStyle(
                                   color: Color(0xFF6B7280),
                                   fontSize: 12,
