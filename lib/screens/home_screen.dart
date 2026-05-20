@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:barcode_widget/barcode_widget.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tirbushona_loyalty_app/core/theme/app_colors.dart';
 import 'package:tirbushona_loyalty_app/core/state/user_state.dart';
 import 'package:tirbushona_loyalty_app/screens/cards_screen.dart';
@@ -18,6 +19,67 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   bool _isCardFlipped = false;
+  String _userName = '';
+  bool _isLoadingName = true;
+  String _physicalCardNumber = 'Няма въведена карта';
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserProfile();
+    _fetchCardData();
+  }
+
+  /// Fetch the current user's profile data from Supabase
+  Future<void> _fetchUserProfile() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) {
+        final data = await Supabase.instance.client
+            .from('profiles')
+            .select('full_name')
+            .eq('id', user.id)
+            .single();
+
+        if (mounted) {
+          setState(() {
+            _userName = data['full_name'] as String? ?? 'Потребител';
+            _isLoadingName = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching user profile: $e');
+      if (mounted) {
+        setState(() {
+          _userName = 'Потребител';
+          _isLoadingName = false;
+        });
+      }
+    }
+  }
+
+  /// Fetch the user's physical card number from loyalty_cards table
+  Future<void> _fetchCardData() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user != null) {
+      try {
+        final cardData = await Supabase.instance.client
+            .from('loyalty_cards')
+            .select('physical_number')
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+        if (mounted && cardData != null && cardData['physical_number'] != null) {
+          setState(() {
+            _physicalCardNumber = cardData['physical_number'] as String;
+          });
+        }
+      } catch (e) {
+        debugPrint('Error fetching card data: $e');
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -88,20 +150,32 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 const SizedBox(height: 16),
 
-                // Header Section - Reactive greeting text
-                ValueListenableBuilder<String>(
-                  valueListenable: UserState().userName,
-                  builder: (context, currentName, child) {
-                    return Text(
-                      'Здравей, $currentName !',
-                      style: const TextStyle(
-                        color: Colors.black,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
+                // Header Section - Dynamic greeting text from Supabase
+                if (_isLoadingName)
+                  SizedBox(
+                    height: 22,
+                    child: Center(
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.black.withOpacity(0.3),
+                          ),
+                        ),
                       ),
-                    );
-                  },
-                ),
+                    ),
+                  )
+                else
+                  Text(
+                    'Здравей, $_userName !',
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 const SizedBox(height: 8),
                 const Text(
                   'Ще трупаш или приспадаш днес?',
@@ -396,7 +470,7 @@ class _HomeScreenState extends State<HomeScreen> {
           // Static Barcode Preview on the back
           BarcodeWidget(
             barcode: Barcode.code128(),
-            data: UserState().userPhysicalCard.value,
+            data: _physicalCardNumber,
             width: 220,
             height: 65,
             drawText: false,
@@ -405,7 +479,7 @@ class _HomeScreenState extends State<HomeScreen> {
           
           // Isolated Button ONLY for launching the full screen overlay
           GestureDetector(
-            onTap: () => _showFullscreenBarcode(context, UserState().userPhysicalCard.value),
+            onTap: () => _showFullscreenBarcode(context, _physicalCardNumber),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               decoration: BoxDecoration(

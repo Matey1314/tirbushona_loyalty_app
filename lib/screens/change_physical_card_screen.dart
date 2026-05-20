@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tirbushona_loyalty_app/core/theme/app_colors.dart';
 
 class ChangePhysicalCardScreen extends StatefulWidget {
@@ -17,6 +18,7 @@ class ChangePhysicalCardScreen extends StatefulWidget {
 class _ChangePhysicalCardScreenState extends State<ChangePhysicalCardScreen> {
   late TextEditingController _newNumberController;
   bool _isNumberValid = false;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -41,10 +43,49 @@ class _ChangePhysicalCardScreenState extends State<ChangePhysicalCardScreen> {
     });
   }
 
-  void _saveChanges() {
-    if (_isNumberValid) {
-      final newNumber = _newNumberController.text;
-      Navigator.pop(context, newNumber);
+  void _saveChanges() async {
+    if (!_isNumberValid || _isLoading) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) {
+        await Supabase.instance.client.from('loyalty_cards').upsert({
+          'user_id': user.id,
+          'physical_number': _newNumberController.text.trim(),
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Номерът на картата е обновен успешно!'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+          Navigator.pop(context);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Грешка при запис: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -247,21 +288,32 @@ class _ChangePhysicalCardScreenState extends State<ChangePhysicalCardScreen> {
                     child: Material(
                       color: Colors.transparent,
                       child: InkWell(
-                        onTap: _isNumberValid ? _saveChanges : null,
+                        onTap: (_isNumberValid && !_isLoading) ? _saveChanges : null,
                         borderRadius: BorderRadius.circular(16),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           child: Center(
-                            child: Text(
-                              'Запази промените',
-                              style: TextStyle(
-                                color: _isNumberValid
-                                    ? Colors.white
-                                    : const Color(0xFF9CA3AF),
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                : Text(
+                                    'Запази промените',
+                                    style: TextStyle(
+                                      color: _isNumberValid
+                                          ? Colors.white
+                                          : const Color(0xFF9CA3AF),
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                           ),
                         ),
                       ),
