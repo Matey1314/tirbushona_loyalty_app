@@ -3,8 +3,7 @@ import 'package:tirbushona_loyalty_app/core/theme/app_colors.dart';
 import 'package:tirbushona_loyalty_app/main.dart';
 import 'package:tirbushona_loyalty_app/services/auth_service.dart';
 import 'package:tirbushona_loyalty_app/widgets/primary_button.dart';
-import 'package:tirbushona_loyalty_app/screens/otp_screen.dart';
-import 'home_screen.dart';
+import 'otp_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,28 +13,25 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   bool _isLoading = false;
   final AuthService _authService = AuthService();
 
   @override
   void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
-  /// Handles the sign-in process
-  void _handleSignIn() async {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
+  /// Handles the phone number submission to send SMS OTP
+  void _handleSendOtp() async {
+    final phoneNumber = _phoneController.text.trim();
 
-    // Validate inputs
-    if (email.isEmpty || password.isEmpty) {
+    // Validate input
+    if (phoneNumber.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Моля, въведете имейл и парола.'),
+          content: const Text('Моля, въведете номер на телефон.'),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 3),
         ),
@@ -43,11 +39,11 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // Basic email validation
-    if (!email.contains('@')) {
+    // Basic phone number validation (should start with + or be 10-15 digits)
+    if (phoneNumber.length < 10) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Моля, въведете валиден имейл адрес.'),
+          content: const Text('Моля, въведете валиден номер на телефон.'),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 3),
         ),
@@ -60,29 +56,31 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // Sign in with email and password
-      await _authService.signIn(
-        email: email,
-        password: password,
-      );
+      // Send OTP to phone number
+      await _authService.signInWithPhone(phoneNumber);
 
-      // If successful, navigate to HomeScreen
+      // If successful, navigate to OTP screen
       if (mounted) {
-        Navigator.of(context).pushReplacement(
-          createSmoothRoute(const HomeScreen()),
+        Navigator.of(context).push(
+          createSmoothRoute(
+            OtpScreen(
+              phoneNumber: phoneNumber,
+              title: 'Потвърждение',
+              subtitle: 'Изпратен е 4 цифрен код на номер',
+              isPhoneChange: false,
+            ),
+          ),
         );
       }
     } on Exception catch (error) {
       if (mounted) {
         // Show error message in SnackBar
-        String errorMessage = 'Възникна грешка при вход. Опитайте отново.';
-        
-        if (error.toString().contains('Invalid login credentials')) {
-          errorMessage = 'Неправилен имейл или парола.';
-        } else if (error.toString().contains('User not found')) {
-          errorMessage = 'Потребителят не е намерен.';
-        } else if (error.toString().contains('Invalid email')) {
-          errorMessage = 'Невалиден имейл адрес.';
+        String errorMessage = 'Възникна грешка при изпращане. Опитайте отново.';
+
+        if (error.toString().contains('invalid phone')) {
+          errorMessage = 'Невалиден номер на телефон.';
+        } else if (error.toString().contains('Too many requests')) {
+          errorMessage = 'Твърде много опити. Опитайте отново по-късно.';
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -156,14 +154,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     padding: const EdgeInsets.all(24),
                     child: Column(
                       children: [
-                        // Email Input Field
+                        // Phone Number Input Field
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Padding(
                               padding: EdgeInsets.only(bottom: 12.0),
                               child: Text(
-                                'Имейл',
+                                'Телефонен номер',
                                 style: TextStyle(
                                   color: AppColors.black,
                                   fontSize: 14,
@@ -178,63 +176,15 @@ class _LoginScreenState extends State<LoginScreen> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: TextField(
-                                controller: _emailController,
-                                keyboardType: TextInputType.emailAddress,
+                                controller: _phoneController,
+                                keyboardType: TextInputType.phone,
                                 enabled: !_isLoading,
                                 style: const TextStyle(
                                   color: AppColors.black,
                                   fontSize: 16,
                                 ),
                                 decoration: InputDecoration(
-                                  hintText: 'пример@имейл.com',
-                                  hintStyle: const TextStyle(
-                                    color: Color(0xFFB0B9C8),
-                                    fontSize: 16,
-                                  ),
-                                  border: InputBorder.none,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 16,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        // Password Input Field
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Padding(
-                              padding: EdgeInsets.only(bottom: 12.0),
-                              child: Text(
-                                'Парола',
-                                style: TextStyle(
-                                  color: AppColors.black,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                            Container(
-                              height: 56,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFE5E7EB),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: TextField(
-                                controller: _passwordController,
-                                obscureText: true,
-                                enabled: !_isLoading,
-                                style: const TextStyle(
-                                  color: AppColors.black,
-                                  fontSize: 16,
-                                ),
-                                decoration: InputDecoration(
-                                  hintText: 'Въведете вашата парола',
+                                  hintText: '+359 895 315 595',
                                   hintStyle: const TextStyle(
                                     color: Color(0xFFB0B9C8),
                                     fontSize: 16,
@@ -256,8 +206,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         SizedBox(
                           width: double.infinity,
                           child: PrimaryButton(
-                            label: _isLoading ? 'Вход...' : 'Вход',
-                            onPressed: _isLoading ? null : _handleSignIn,
+                            label: _isLoading ? 'Изпращане...' : 'Изпрати ',
+                            onPressed: _handleSendOtp,
                             isLoading: _isLoading,
                           ),
                         ),
@@ -270,7 +220,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           text: const TextSpan(
                             children: [
                               TextSpan(
-                                text: 'С натискането на „Вход", Вие се съгласявате с нашите ',
+                                text: 'С натискането на „Изпрати ", Вие се съгласявате с нашите ',
                                 style: TextStyle(
                                   color: Color(0xFF6B7280),
                                   fontSize: 12,

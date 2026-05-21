@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:barcode_widget/barcode_widget.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tirbushona_loyalty_app/core/theme/app_colors.dart';
-import 'package:tirbushona_loyalty_app/core/state/user_state.dart';
 import 'package:tirbushona_loyalty_app/screens/cards_screen.dart';
 import 'package:tirbushona_loyalty_app/screens/history_screen.dart';
 import 'package:tirbushona_loyalty_app/screens/settings_screen.dart';
 import 'package:tirbushona_loyalty_app/screens/receipt_details_screen.dart';
 import 'package:tirbushona_loyalty_app/main.dart';
+import 'dart:async';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,66 +19,56 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   bool _isCardFlipped = false;
-  String _userName = '';
-  bool _isLoadingName = true;
-  String _physicalCardNumber = 'Няма въведена карта';
+  String _userName = 'Потребител';
+  String _physicalCardNumber = '';
+  bool _isLoadingProfile = true;
+  StreamSubscription? _profileSubscription;
 
   @override
   void initState() {
     super.initState();
-    _fetchUserProfile();
-    _fetchCardData();
+    _subscribeToProfileUpdates();
   }
 
-  /// Fetch the current user's profile data from Supabase
-  Future<void> _fetchUserProfile() async {
-    try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user != null) {
-        final data = await Supabase.instance.client
-            .from('profiles')
-            .select('full_name')
-            .eq('id', user.id)
-            .single();
-
-        if (mounted) {
-          setState(() {
-            _userName = data['full_name'] as String? ?? 'Потребител';
-            _isLoadingName = false;
+  /// Subscribe to real-time profile updates via Supabase Stream
+  /// Fetches both user name and physical card number from profiles table
+  void _subscribeToProfileUpdates() {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId != null) {
+      _profileSubscription = Supabase.instance.client
+          .from('profiles')
+          .stream(primaryKey: ['id'])
+          .eq('id', userId)
+          .listen((List<Map<String, dynamic>> data) {
+            if (data.isNotEmpty && mounted) {
+              setState(() {
+                _userName = data.first['full_name'] as String? ?? 'Потребител';
+                // Fetch the card number from the same row
+                _physicalCardNumber = data.first['physical_card_number'] as String? ?? '';
+                _isLoadingProfile = false;
+              });
+            } else if (mounted) {
+              setState(() {
+                _userName = 'Потребител';
+                _physicalCardNumber = '';
+                _isLoadingProfile = false;
+              });
+            }
+          }, onError: (error) {
+            debugPrint('Profile stream error: $error');
+            if (mounted) {
+              setState(() => _isLoadingProfile = false);
+            }
           });
-        }
-      }
-    } catch (e) {
-      debugPrint('Error fetching user profile: $e');
-      if (mounted) {
-        setState(() {
-          _userName = 'Потребител';
-          _isLoadingName = false;
-        });
-      }
     }
   }
 
-  /// Fetch the user's physical card number from loyalty_cards table
-  Future<void> _fetchCardData() async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user != null) {
-      try {
-        final cardData = await Supabase.instance.client
-            .from('loyalty_cards')
-            .select('physical_number')
-            .eq('user_id', user.id)
-            .maybeSingle();
 
-        if (mounted && cardData != null && cardData['physical_number'] != null) {
-          setState(() {
-            _physicalCardNumber = cardData['physical_number'] as String;
-          });
-        }
-      } catch (e) {
-        debugPrint('Error fetching card data: $e');
-      }
-    }
+
+  @override
+  void dispose() {
+    _profileSubscription?.cancel();
+    super.dispose();
   }
 
   @override
@@ -151,7 +141,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 16),
 
                 // Header Section - Dynamic greeting text from Supabase
-                if (_isLoadingName)
+                if (_isLoadingProfile)
                   SizedBox(
                     height: 22,
                     child: Center(
@@ -458,6 +448,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // The Back side now holds the static barcode preview AND the absolute button trigger
   Widget _buildCardBack() {
+    // Strict validation: card number must have content AND be at least 4 chars
+    final isCardNumberValid =
+        _physicalCardNumber.isNotEmpty && _physicalCardNumber.length > 3;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -467,48 +461,83 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Static Barcode Preview on the back
-          BarcodeWidget(
-            barcode: Barcode.code128(),
-            data: _physicalCardNumber,
-            width: 220,
-            height: 65,
-            drawText: false,
-          ),
-          const SizedBox(height: 8),
-          
-          // Isolated Button ONLY for launching the full screen overlay
-          GestureDetector(
-            onTap: () => _showFullscreenBarcode(context, _physicalCardNumber),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF3F4F6),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.qr_code_scanner, color: Colors.black54, size: 16),
-                  SizedBox(width: 6),
-                  Text(
-                    'сканирай карта',
-                    style: TextStyle(
-                      color: Colors.black87,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
+          if (isCardNumberValid)
+            // Valid Card: Show Barcode
+            Column(
+              children: [
+                BarcodeWidget(
+                  barcode: Barcode.code128(),
+                  data: _physicalCardNumber,
+                  width: 220,
+                  height: 65,
+                  drawText: false,
+                ),
+                const SizedBox(height: 8),
+                // Button to launch fullscreen barcode
+                GestureDetector(
+                  onTap: () => _showFullscreenBarcode(context, _physicalCardNumber),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3F4F6),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.qr_code_scanner, color: Colors.black54, size: 16),
+                        SizedBox(width: 6),
+                        Text(
+                          'сканирай карта',
+                          style: TextStyle(
+                            color: Colors.black87,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
+                ),
+              ],
+            )
+          else
+            // No Card or Invalid Card: Show Placeholder UI
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: const Center(
+                child: Text(
+                  'Няма въведена карта.\nДобавете номер от настройките.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
   }
 
   void _showFullscreenBarcode(BuildContext context, String barcodeData) {
+    // Safety check: don't show barcode if data is empty or too short
+    if (barcodeData.isEmpty || barcodeData.length <= 3) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Няма валидна карта за сканиране.'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       barrierDismissible: true,

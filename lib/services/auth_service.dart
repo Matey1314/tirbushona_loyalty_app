@@ -3,46 +3,29 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class AuthService {
   final SupabaseClient _client = Supabase.instance.client;
 
-  /// Signs up a new user with email and password, and creates a profile
-  /// Returns the AuthResponse from Supabase
-  Future<AuthResponse> signUp({
-    required String email,
-    required String password,
-    required String fullName,
-  }) async {
+  /// Sends an SMS with a one-time password to the specified phone number
+  /// This initiates the phone authentication flow
+  Future<void> signInWithPhone(String phoneNumber) async {
     try {
-      // Register user with Supabase Auth
-      final response = await _client.auth.signUp(
-        email: email,
-        password: password,
+      await _client.auth.signInWithOtp(
+        phone: phoneNumber,
       );
-
-      // If signup was successful, create a profile in the public.profiles table
-      if (response.user != null) {
-        await _client.from('profiles').insert({
-          'id': response.user!.id,
-          'email': email,
-          'full_name': fullName,
-          'created_at': DateTime.now().toIso8601String(),
-        });
-      }
-
-      return response;
     } catch (e) {
       rethrow;
     }
   }
 
-  /// Signs in a user with email and password
-  /// Returns the AuthResponse from Supabase
-  Future<AuthResponse> signIn({
-    required String email,
-    required String password,
-  }) async {
+  /// Verifies the OTP code sent to the phone number
+  /// Returns the AuthResponse from Supabase containing the session
+  Future<AuthResponse> verifyPhoneOtp(
+    String phoneNumber,
+    String token,
+  ) async {
     try {
-      final response = await _client.auth.signInWithPassword(
-        email: email,
-        password: password,
+      final response = await _client.auth.verifyOTP(
+        phone: phoneNumber,
+        token: token,
+        type: OtpType.sms,
       );
       return response;
     } catch (e) {

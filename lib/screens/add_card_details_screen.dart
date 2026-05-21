@@ -20,7 +20,6 @@ class _AddCardDetailsScreenState extends State<AddCardDetailsScreen> {
   String? _cardNumber;
   String? _additionalNotes;
   final ImagePicker _picker = ImagePicker();
-  String? _cardImagePath;
 
   @override
   Widget build(BuildContext context) {
@@ -296,9 +295,6 @@ class _AddCardDetailsScreenState extends State<AddCardDetailsScreen> {
       final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
 
       if (image != null) {
-        setState(() {
-          _cardImagePath = image.path;
-        });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Снимката е добавена успешно!')),

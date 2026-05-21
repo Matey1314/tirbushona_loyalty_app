@@ -19,7 +19,6 @@ class _VerifyPhoneScreenState extends State<VerifyPhoneScreen> {
   late List<TextEditingController> _codeControllers;
   late FocusNode _firstFocusNode;
   int _secondsRemaining = 60;
-  late Future<void> _timerFuture;
   bool _canResendCode = false;
 
   @override
@@ -27,7 +26,7 @@ class _VerifyPhoneScreenState extends State<VerifyPhoneScreen> {
     super.initState();
     _codeControllers = List.generate(6, (_) => TextEditingController());
     _firstFocusNode = FocusNode();
-    _timerFuture = _startTimer();
+    _startTimer();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _firstFocusNode.requestFocus();
     });
@@ -59,12 +58,8 @@ class _VerifyPhoneScreenState extends State<VerifyPhoneScreen> {
       _secondsRemaining = 60;
       _canResendCode = false;
     });
-    _timerFuture = _startTimer();
+    _startTimer();
     // Implement actual SMS resend logic here
-  }
-
-  String _getFullCode() {
-    return _codeControllers.map((c) => c.text).join();
   }
 
   bool _isCodeComplete() {
@@ -72,7 +67,6 @@ class _VerifyPhoneScreenState extends State<VerifyPhoneScreen> {
   }
 
   void _verifyCode() {
-    final code = _getFullCode();
     // Implement verification logic here
     // For now, show success dialog
     _showVerificationSuccess();

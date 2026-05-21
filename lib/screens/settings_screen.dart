@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tirbushona_loyalty_app/core/theme/app_colors.dart';
 import 'package:tirbushona_loyalty_app/screens/profile_screen.dart';
 import 'package:tirbushona_loyalty_app/screens/preferences_screen.dart';
@@ -63,26 +64,8 @@ class SettingsScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 20),
                     
-                    // Name
-                    const Text(
-                      'Матей Пандъров',
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    
-                    // Phone Number
-                    const Text(
-                      '0877537300',
-                      style: TextStyle(
-                        color: Color(0xFF6B7280),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
+                    // Name and Phone - Dynamic via StreamBuilder
+                    _buildProfileHeader(),
                   ],
                 ),
               ),
@@ -169,6 +152,70 @@ class SettingsScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  /// Build profile header with dynamic name and phone via StreamBuilder
+  Widget _buildProfileHeader() {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: userId != null
+          ? Supabase.instance.client
+              .from('profiles')
+              .stream(primaryKey: ['id'])
+              .eq('id', userId)
+          : const Stream.empty(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Column(
+            children: [
+              Text(
+                'Зареждане...',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                '',
+                style: TextStyle(
+                  color: Color(0xFF6B7280),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ],
+          );
+        }
+
+        final profileData = snapshot.data!.first;
+        final fullName = profileData['full_name'] as String? ?? 'Потребител';
+        final phone = profileData['phone_number'] as String? ?? '';
+
+        return Column(
+          children: [
+            Text(
+              fullName,
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              phone,
+              style: const TextStyle(
+                color: Color(0xFF6B7280),
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io';
+import 'dart:async';
 import 'package:tirbushona_loyalty_app/core/theme/app_colors.dart';
 import 'package:tirbushona_loyalty_app/core/state/user_state.dart';
 import 'package:tirbushona_loyalty_app/screens/change_phone_screen.dart';
 import 'package:tirbushona_loyalty_app/screens/change_logistic_number_screen.dart';
-import 'package:tirbushona_loyalty_app/screens/change_physical_card_screen.dart';
 import 'package:tirbushona_loyalty_app/main.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -21,16 +22,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final userState = UserState();
   String? _profileImagePath;
   bool _isLoadingImage = false;
+  bool _isLoadingProfile = true;
 
   @override
   void initState() {
     super.initState();
     _loadProfileImagePath();
+    _loadProfileDataFromSupabase();
   }
 
-  @override
-  void dispose() {
-    super.dispose();
+  /// Load profile data from Supabase database
+  Future<void> _loadProfileDataFromSupabase() async {
+    try {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) {
+        debugPrint('User not authenticated');
+        setState(() => _isLoadingProfile = false);
+        return;
+      }
+
+      final profileData = await Supabase.instance.client
+          .from('profiles')
+          .select()
+          .eq('id', userId)
+          .maybeSingle();
+
+      if (profileData != null && mounted) {
+        setState(() {
+          userState.userName.value =
+              profileData['full_name'] as String? ?? 'Потребител';
+          userState.userPhone.value =
+              profileData['phone_number'] as String? ?? '';
+          userState.userDOB.value =
+              profileData['birth_date'] as String? ?? '';
+          userState.userLogisticNumber.value =
+              profileData['logistic_card_number'] as String? ?? '';
+          userState.userPhysicalCard.value =
+              profileData['physical_card_number'] as String? ?? '';
+          _isLoadingProfile = false;
+        });
+      } else if (mounted) {
+        setState(() => _isLoadingProfile = false);
+      }
+    } catch (e) {
+      debugPrint('Error loading profile data: $e');
+      if (mounted) {
+        setState(() => _isLoadingProfile = false);
+      }
+    }
   }
 
   @override
@@ -40,13 +79,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFFE9EDF4),
         elevation: 0,
-        leading: GestureDetector(
-          onTap: () => Navigator.of(context).pop(),
-          child: const Icon(
+        leading: IconButton(
+          icon: const Icon(
             Icons.arrow_back,
             color: Colors.black,
             size: 24,
           ),
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+          },
         ),
         title: const Text(
           'Профил',
@@ -167,6 +210,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           'Име',
                           userState.userName.value,
                           (newValue) async {
+                            // Update Supabase first
+                            await _updateProfileField('full_name', newValue);
+                            // Update local state
                             await userState.setUserName(newValue);
                             if (mounted) {
                               setState(() {});
@@ -213,6 +259,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ).then((newPhone) async {
                           if (newPhone != null) {
+                            // Update Supabase first
+                            await _updateProfileField('phone_number', newPhone);
+                            // Update local state
                             await userState.setUserPhone(newPhone);
                             if (mounted) {
                               setState(() {});
@@ -246,6 +295,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         )
                             .then((newNumber) async {
                           if (newNumber != null && newNumber is String) {
+                            // Update Supabase first
+                            await _updateProfileField('logistic_card_number', newNumber);
+                            // Update local state
                             await userState.setUserLogisticNumber(newNumber);
                             if (mounted) {
                               setState(() {});
@@ -261,22 +313,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       controller: null,
                       icon: Icons.credit_card_outlined,
                       onEditTap: () {
-                        Navigator.of(context)
-                            .push(
-                          createSmoothRoute(
-                            ChangePhysicalCardScreen(
-                              currentNumber: userState.userPhysicalCard.value,
-                            ),
-                          ),
-                        )
-                            .then((newNumber) async {
-                          if (newNumber != null && newNumber is String) {
-                            await userState.setUserPhysicalCard(newNumber);
+                        _showEditDialog(
+                          'Физически номер карта',
+                          userState.userPhysicalCard.value,
+                          (newValue) async {
+                            // Update Supabase first
+                            await _updateProfileField('physical_card_number', newValue);
+                            // Update local state
+                            await userState.setUserPhysicalCard(newValue);
                             if (mounted) {
                               setState(() {});
                             }
-                          }
-                        });
+                          },
+                          isNumeric: true,
+                        );
                       },
                     ),
                   ],
@@ -307,6 +357,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  /// Update a specific profile field in Supabase
+  /// Maps field names to database column names
+  Future<void> _updateProfileField(String column, String value) async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Грешка: Не е намерена потребителска сесия'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    try {
+      // Perform Supabase update
+      await Supabase.instance.client.from('profiles').update({
+        column: value,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', userId);
+
+      if (mounted) {
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Промяната е запазена успешно!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.all(16),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        // Show error message with actual error details
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Грешка при запис: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      }
+      debugPrint('Error updating profile field $column: $e');
+    }
+  }
+
   Widget _buildDataField({
     required String label,
     required String value,
@@ -314,69 +415,69 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required IconData icon,
     VoidCallback? onEditTap,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            offset: const Offset(0, 2),
-            blurRadius: 8,
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF3F4F6),
-              borderRadius: BorderRadius.circular(12),
+    return GestureDetector(
+      onTap: onEditTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              offset: const Offset(0, 2),
+              blurRadius: 8,
             ),
-            child: Icon(
-              icon,
-              color: AppColors.gradientBlue,
-              size: 20,
+          ],
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF3F4F6),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                icon,
+                color: AppColors.gradientBlue,
+                size: 20,
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Color(0xFF9CA3AF),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      color: Color(0xFF9CA3AF),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    color: Colors.black,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                  const SizedBox(height: 4),
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          if (onEditTap != null)
-            GestureDetector(
-              onTap: onEditTap,
-              child: const Icon(
+            if (onEditTap != null)
+              const Icon(
                 Icons.edit_outlined,
                 color: Color(0xFFD1D5DB),
                 size: 20,
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -477,16 +578,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _showDatePickerDialog() async {
-    // Parse current date string in format "DD / MM / YYYY"
-    final parts = userState.userDOB.value.split(' / ');
-    int day = int.tryParse(parts[0]) ?? 1;
-    int month = int.tryParse(parts[1]) ?? 1;
-    int year = int.tryParse(parts[2]) ?? 2000;
+  Future<void> _showDatePickerDialog() async {
+    // 1. Safe default date
+    DateTime initialDate = DateTime(2000, 1, 1);
 
+    // 2. Safe parsing of the current Supabase string
+    try {
+      final dateValue = userState.userDOB.value;
+      if (dateValue.isNotEmpty && dateValue.contains('/')) {
+        final parts = dateValue.replaceAll(' ', '').split('/');
+        if (parts.length >= 3) {
+          final day = int.tryParse(parts[0]) ?? 1;
+          final month = int.tryParse(parts[1]) ?? 1;
+          final year = int.tryParse(parts[2]) ?? 2000;
+          initialDate = DateTime(year, month, day);
+        }
+      }
+    } catch (e) {
+      debugPrint('Date parse error, using default: $e');
+    }
+
+    // 3. Show picker
     final selectedDate = await showDatePicker(
       context: context,
-      initialDate: DateTime(year, month, day),
+      initialDate: initialDate,
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
       builder: (context, child) {
@@ -504,12 +619,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
       },
     );
 
+    // 4. Update Supabase and local state
     if (selectedDate != null) {
-      final newDOB =
+      // Format as DD / MM / YYYY
+      final formattedDate =
           '${selectedDate.day.toString().padLeft(2, '0')} / ${selectedDate.month.toString().padLeft(2, '0')} / ${selectedDate.year}';
-      await userState.setUserDOB(newDOB);
-      if (mounted) {
-        setState(() {});
+      if (formattedDate != userState.userDOB.value) {
+        await _updateProfileField('birth_date', formattedDate);
+        await userState.setUserDOB(formattedDate);
+        if (mounted) {
+          setState(() {});
+        }
       }
     }
   }

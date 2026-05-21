@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:tirbushona_loyalty_app/core/theme/app_colors.dart';
 import 'package:tirbushona_loyalty_app/main.dart';
+import 'package:tirbushona_loyalty_app/services/auth_service.dart';
 import 'package:tirbushona_loyalty_app/widgets/primary_button.dart';
 import 'package:tirbushona_loyalty_app/widgets/bouncing_dots_indicator.dart';
+import 'home_screen.dart';
 import 'success_screen.dart';
 
 class OtpScreen extends StatefulWidget {
@@ -30,9 +32,9 @@ class _OtpScreenState extends State<OtpScreen>
   late List<TextEditingController> _otpControllers;
   late List<FocusNode> _otpFocusNodes;
   int _secondsRemaining = 48;
-  late Future<void> _timerFuture;
   bool _isLoading = false;
   late AnimationController _animationController;
+  final AuthService _authService = AuthService();
 
   @override
   void initState() {
@@ -47,7 +49,7 @@ class _OtpScreenState extends State<OtpScreen>
   }
 
   void _startTimer() {
-    _timerFuture = Future.doWhile(() async {
+    Future.doWhile(() async {
       await Future.delayed(const Duration(seconds: 1));
       if (mounted && _secondsRemaining > 0) {
         setState(() {
@@ -74,7 +76,7 @@ class _OtpScreenState extends State<OtpScreen>
     }
   }
 
-  void _verifyCode() {
+  void _verifyCode() async {
     String otp = _otpControllers.map((controller) => controller.text).join();
     
     if (otp.length == 4) {
@@ -82,20 +84,58 @@ class _OtpScreenState extends State<OtpScreen>
         _isLoading = true;
       });
       
-      // Simulate server verification delay
-      Future.delayed(const Duration(seconds: 2), () {
+      try {
+        // Verify OTP with Supabase
+        await _authService.verifyPhoneOtp(widget.phoneNumber, otp);
+        
         if (mounted) {
           if (widget.isPhoneChange) {
             // For phone change, show success and return to profile
             _showPhoneChangeSuccess();
           } else {
-            // For login, navigate to success screen
-            Navigator.of(context).pushReplacement(
-              createSmoothRoute(const SuccessScreen()),
+            // For login, navigate to HomeScreen and clear the navigation stack
+            Navigator.of(context).pushAndRemoveUntil(
+              createSmoothRoute(const HomeScreen()),
+              (route) => false,
             );
           }
         }
-      });
+      } on Exception catch (error) {
+        if (mounted) {
+          String errorMessage = 'Възникна грешка при проверката. Опитайте отново.';
+          
+          if (error.toString().contains('Invalid OTP')) {
+            errorMessage = 'Невалиден код. Моля, опитайте отново.';
+          } else if (error.toString().contains('OTP expired')) {
+            errorMessage = 'Кодът е изтекъл. Поискайте нов код.';
+          } else if (error.toString().contains('too many attempts')) {
+            errorMessage = 'Твърде много опити. Опитайте по-късно.';
+          }
+          
+          // Show error
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMessage),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+          
+          // Clear OTP fields
+          for (var controller in _otpControllers) {
+            controller.clear();
+          }
+          
+          // Reset focus to first field
+          FocusScope.of(context).requestFocus(_otpFocusNodes[0]);
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
     }
   }
 
