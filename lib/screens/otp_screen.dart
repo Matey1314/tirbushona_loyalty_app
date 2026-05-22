@@ -5,7 +5,6 @@ import 'package:tirbushona_loyalty_app/services/auth_service.dart';
 import 'package:tirbushona_loyalty_app/widgets/primary_button.dart';
 import 'package:tirbushona_loyalty_app/widgets/bouncing_dots_indicator.dart';
 import 'home_screen.dart';
-import 'success_screen.dart';
 
 class OtpScreen extends StatefulWidget {
   final String phoneNumber;

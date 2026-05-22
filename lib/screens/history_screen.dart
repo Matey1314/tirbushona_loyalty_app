@@ -225,7 +225,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: categories.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
                   return _buildCategoryChip(categories[index]);
                 },
@@ -382,7 +382,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget _buildReceiptCard(Map<String, dynamic> receipt) {
     final location = receipt['store_location'] as String? ?? 'Обект';
     final totalAmount = receipt['total_amount']?.toString() ?? '0.00';
+    
+    // Взимаме и двете стойности
+    final pointsEarned = receipt['points_earned']?.toString() ?? '0.00';
     final usedBonusMoney = receipt['used_bonus_money']?.toString() ?? '0.00';
+
+    // Превръщаме ги в числа за проверка
+    final double pointsDouble = double.tryParse(pointsEarned) ?? 0.0;
+    final double usedBonusDouble = double.tryParse(usedBonusMoney) ?? 0.0;
 
     // Format date
     String formattedDate = '';
@@ -467,7 +474,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ),
             ),
 
-            // Right Column - Total Amount and Bonus Money
+            // Right Column - Total Amount, Points Earned OR Bonus Money Used
             Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -480,11 +487,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                if (double.tryParse(usedBonusMoney) != null &&
-                    double.parse(usedBonusMoney) > 0) ...[
+                // Логика: Или приспадаш, или трупаш!
+                if (usedBonusDouble > 0) ...[
                   const SizedBox(height: 2),
                   Text(
-                    '+ $usedBonusMoney лв. Натрупано',
+                    'Приспаднато: -$usedBonusMoney €',
+                    style: const TextStyle(
+                      color: Colors.red,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ] else if (pointsDouble > 0) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Натрупано: +$pointsEarned €',
                     style: const TextStyle(
                       color: Colors.green,
                       fontSize: 12,
@@ -500,5 +517,3 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 }
-
-

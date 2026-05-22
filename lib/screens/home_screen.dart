@@ -63,8 +63,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-
-
   @override
   void dispose() {
     _profileSubscription?.cancel();
@@ -129,10 +127,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHomeContent() {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+
     return SafeArea(
       child: Column(
         children: [
-          // Fixed Header Section
+          // Fixed Header Section (Greeting & Card)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20.0),
             child: Column(
@@ -186,7 +186,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                   child: Container(
                     width: double.infinity,
-                    margin: const EdgeInsets.only(bottom: 25),
+                    margin: const EdgeInsets.only(bottom: 20),
                     child: TweenAnimationBuilder<double>(
                       tween: Tween<double>(
                         begin: 0,
@@ -221,150 +221,183 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 5),
-
-                // Balance Card
-                Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    gradient: const LinearGradient(
-                      colors: [
-                        AppColors.gradientBlue,
-                        AppColors.gradientRed,
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.20),
-                        offset: const Offset(0, 4),
-                        blurRadius: 4,
-                        spreadRadius: 0,
-                      ),
-                    ],
-                  ),
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text(
-                            'Натрупана сума',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          const Icon(
-                            Icons.savings_outlined,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        '100,36 €',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 42,
-                          fontWeight: FontWeight.bold,
-                          shadows: [
-                            Shadow(
-                              offset: const Offset(0, 2),
-                              blurRadius: 4.0,
-                              color: Colors.black.withOpacity(0.25),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 40),
-
-                // History Section Title
-                const Center(
-                  child: Text(
-                    'История на покупките',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
               ],
             ),
           ),
 
-          // Scrollable Transaction List
+          // Dynamic Stream Section (Balance and Recent Transactions)
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              children: [
-                _buildTransactionCard(
-                  date: '10.02.2026г.',
-                  totalAmount: '1119.21 €',
-                  pointsText: 'Натрупано : 55.96 €',
-                  isAccumulated: true,
-                ),
-                _buildTransactionCard(
-                  date: '10.02.2026г.',
-                  totalAmount: '94.50 €',
-                  pointsText: 'Приспаднато : 15.56 €',
-                  isAccumulated: false,
-                ),
-                _buildTransactionCard(
-                  date: '09.02.2026г.',
-                  totalAmount: '245.75 €',
-                  pointsText: 'Натрупано : 12.28 €',
-                  isAccumulated: true,
-                ),
-                _buildTransactionCard(
-                  date: '07.02.2026г.',
-                  totalAmount: '45.20 €',
-                  pointsText: 'Натрупано : 2.26 €',
-                  isAccumulated: true,
-                ),
-                _buildTransactionCard(
-                  date: '05.02.2026г.',
-                  totalAmount: '210.00 €',
-                  pointsText: 'Приспаднато : 40.00 €',
-                  isAccumulated: false,
-                ),
-                _buildTransactionCard(
-                  date: '04.02.2026г.',
-                  totalAmount: '12.50 €',
-                  pointsText: 'Натрупано : 0.63 €',
-                  isAccumulated: true,
-                ),
-                _buildTransactionCard(
-                  date: '01.02.2026г.',
-                  totalAmount: '320.45 €',
-                  pointsText: 'Натрупано : 16.02 €',
-                  isAccumulated: true,
-                ),
-                _buildTransactionCard(
-                  date: '28.01.2026г.',
-                  totalAmount: '55.00 €',
-                  pointsText: 'Приспаднато : 10.00 €',
-                  isAccumulated: false,
-                ),
-                _buildTransactionCard(
-                  date: '25.01.2026г.',
-                  totalAmount: '89.99 €',
-                  pointsText: 'Натрупано : 4.50 €',
-                  isAccumulated: true,
-                ),
-                const SizedBox(height: 100),
-              ],
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream: userId != null
+                  ? Supabase.instance.client
+                      .from('receipts')
+                      .stream(primaryKey: ['id'])
+                      .eq('user_id', userId)
+                      .order('date_issued', ascending: false)
+                  : const Stream.empty(),
+              builder: (context, snapshot) {
+                double totalBalance = 0.0;
+                List<Map<String, dynamic>> recentReceipts = [];
+
+                if (snapshot.hasData && snapshot.data != null) {
+                  final receipts = snapshot.data!;
+                  // Взимаме само последните 5 бона за началния екран
+                  recentReceipts = receipts.take(5).toList(); 
+
+                  // Пресмятаме общия баланс: Всичко натрупано МИНУС всичко използвано
+                  for (var r in receipts) {
+                    final points = double.tryParse(r['points_earned']?.toString() ?? '0') ?? 0.0;
+                    final used = double.tryParse(r['used_bonus_money']?.toString() ?? '0') ?? 0.0;
+                    totalBalance += (points - used);
+                  }
+                }
+
+                return Column(
+                  children: [
+                    // Balance Card & Title
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                      child: Column(
+                        children: [
+                          // Balance Card
+                          Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              gradient: const LinearGradient(
+                                colors: [
+                                  AppColors.gradientBlue,
+                                  AppColors.gradientRed,
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.20),
+                                  offset: const Offset(0, 4),
+                                  blurRadius: 4,
+                                  spreadRadius: 0,
+                                ),
+                              ],
+                            ),
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Text(
+                                      'Натрупана сума',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    const Icon(
+                                      Icons.savings_outlined,
+                                      color: Colors.white,
+                                      size: 24,
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  '${totalBalance.toStringAsFixed(2)} €',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 42,
+                                    fontWeight: FontWeight.bold,
+                                    shadows: [
+                                      Shadow(
+                                        offset: const Offset(0, 2),
+                                        blurRadius: 4.0,
+                                        color: Colors.black.withOpacity(0.25),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 35),
+
+                          // History Section Title
+                          const Center(
+                            child: Text(
+                              'История на покупките',
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                      ),
+                    ),
+
+                    // Scrollable Transaction List (Live Data)
+                    Expanded(
+                      child: recentReceipts.isEmpty
+                          ? const Center(
+                              child: Text(
+                                'Нямате покупки все още.',
+                                style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w500),
+                              ),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                              itemCount: recentReceipts.length + 1,
+                              itemBuilder: (context, index) {
+                                // Празно пространство най-отдолу за да не се закрива от менюто
+                                if (index == recentReceipts.length) {
+                                  return const SizedBox(height: 100);
+                                }
+
+                                final receipt = recentReceipts[index];
+                                final totalAmount = receipt['total_amount']?.toString() ?? '0.00';
+                                final pointsDouble = double.tryParse(receipt['points_earned']?.toString() ?? '0') ?? 0.0;
+                                final usedDouble = double.tryParse(receipt['used_bonus_money']?.toString() ?? '0') ?? 0.0;
+
+                                String pointsText = '';
+                                bool isAccumulated = true;
+
+                                // Логика за текста на бележката
+                                if (usedDouble > 0) {
+                                  pointsText = 'Приспаднато: -$usedDouble €';
+                                  isAccumulated = false;
+                                } else {
+                                  pointsText = 'Натрупано: +$pointsDouble €';
+                                  isAccumulated = true;
+                                }
+
+                                // Форматиране на датата
+                                String formattedDate = '';
+                                try {
+                                  if (receipt['date_issued'] != null) {
+                                    final parsedDate = DateTime.parse(receipt['date_issued'] as String).toLocal();
+                                    formattedDate = "${parsedDate.day.toString().padLeft(2, '0')}.${parsedDate.month.toString().padLeft(2, '0')}.${parsedDate.year}г.";
+                                  }
+                                } catch (e) {
+                                  formattedDate = receipt['date_issued']?.toString() ?? '';
+                                }
+
+                                return _buildTransactionCard(
+                                  date: formattedDate,
+                                  totalAmount: '$totalAmount лв.',
+                                  pointsText: pointsText,
+                                  isAccumulated: isAccumulated,
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -446,9 +479,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // The Back side now holds the static barcode preview AND the absolute button trigger
   Widget _buildCardBack() {
-    // Strict validation: card number must have content AND be at least 4 chars
     final isCardNumberValid =
         _physicalCardNumber.isNotEmpty && _physicalCardNumber.length > 3;
 
@@ -462,7 +493,6 @@ class _HomeScreenState extends State<HomeScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           if (isCardNumberValid)
-            // Valid Card: Show Barcode
             Column(
               children: [
                 BarcodeWidget(
@@ -473,7 +503,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   drawText: false,
                 ),
                 const SizedBox(height: 8),
-                // Button to launch fullscreen barcode
                 GestureDetector(
                   onTap: () => _showFullscreenBarcode(context, _physicalCardNumber),
                   child: Container(
@@ -502,7 +531,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             )
           else
-            // No Card or Invalid Card: Show Placeholder UI
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -526,7 +554,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showFullscreenBarcode(BuildContext context, String barcodeData) {
-    // Safety check: don't show barcode if data is empty or too short
     if (barcodeData.isEmpty || barcodeData.length <= 3) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -632,7 +659,6 @@ class _HomeScreenState extends State<HomeScreen> {
       color: Colors.transparent,
       child: InkWell(
         onTap: () {
-          debugPrint('==> HISTORY TAP SUCCESS!');
           Navigator.push(
             context,
             createSmoothRoute(const ReceiptDetailsScreen()),
