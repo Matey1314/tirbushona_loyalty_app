@@ -23,6 +23,11 @@ class _CardDisplayScreenState extends State<CardDisplayScreen> {
   }
 
   Future<void> _loadTemplate() async {
+    if (widget.card['template_id'] == null) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
+
     try {
       final data = await Supabase.instance.client
           .from('card_templates')

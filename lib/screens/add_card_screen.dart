@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tirbushona_loyalty_app/screens/add_card_details_screen.dart';
+import 'manual_add_card_screen.dart';
 
 class AddCardScreen extends StatefulWidget {
   const AddCardScreen({super.key});
@@ -194,7 +195,10 @@ class _AddCardScreenState extends State<AddCardScreen> {
                   const SizedBox(height: 16),
                   GestureDetector(
                     onTap: () {
-                      // Тук ще сложим екран за изцяло ръчна карта по-късно
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const ManualAddCardScreen()),
+                      );
                     },
                     child: Container(
                       width: double.infinity,

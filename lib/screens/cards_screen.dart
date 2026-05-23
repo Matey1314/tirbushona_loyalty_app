@@ -14,6 +14,18 @@ class CardsScreen extends StatefulWidget {
 class _CardsScreenState extends State<CardsScreen> {
   final _supabase = Supabase.instance.client;
 
+  // Бронирана функция за инициали (ако има повече интервали, ги чисти)
+  String _getInitials(String? storeName) {
+    if (storeName == null || storeName.trim().isEmpty) return "??";
+    final cleanName = storeName.trim().replaceAll(RegExp(r'\s+'), ' ');
+    List<String> names = cleanName.split(' ');
+    if (names.length > 1) {
+      return (names[0][0] + names[1][0]).toUpperCase();
+    } else {
+      return names[0][0].toUpperCase();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final userId = _supabase.auth.currentUser?.id;
@@ -25,7 +37,6 @@ class _CardsScreenState extends State<CardsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 16),
-            // Title
             const Text(
               'Моите карти',
               style: TextStyle(
@@ -35,8 +46,6 @@ class _CardsScreenState extends State<CardsScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            
-            // Списъкът се обновява в реално време и е сортиран по най-използвани
             Expanded(
               child: userId == null
                   ? const Center(child: Text('Моля, влез в профила си.'))
@@ -44,7 +53,7 @@ class _CardsScreenState extends State<CardsScreen> {
                       stream: _supabase
                           .from('wallet_cards')
                           .stream(primaryKey: ['id'])
-                          .eq('user_id', userId)
+                          .eq('user_id', userId!) // Добавен '!' за 100% сигурност
                           .order('usage_count', ascending: false),
                       builder: (context, snapshot) {
                         if (!snapshot.hasData) {
@@ -72,10 +81,64 @@ class _CardsScreenState extends State<CardsScreen> {
                             }
 
                             final card = cards[index];
+
+                            // 1. ТОТАЛНА ЗАЩИТА: Проверяваме template_id по всички възможни начини
+                            final dynamic rawTemplateId = card['template_id'];
+                            final bool hasNoTemplate = rawTemplateId == null || 
+                                                       rawTemplateId.toString().trim().isEmpty || 
+                                                       rawTemplateId.toString() == 'null';
+
+                            // 2. Безопасно извличане на името
+                            final String safeStoreName = (card['store_name'] ?? 'Ръчна Карта').toString().trim();
+
+                            // АКО Е РЪЧНА КАРТА
+                            if (hasNoTemplate) {
+                              return InkWell(
+                                onTap: () => Navigator.push(context, createSmoothRoute(CardDisplayScreen(card: card))),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
+                                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8)],
+                                  ),
+                                  child: Center(
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Container(
+                                          width: 55,
+                                          height: 55,
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFF3F4F6),
+                                            shape: BoxShape.circle,
+                                            border: Border.all(color: Colors.grey.shade300, width: 1),
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              _getInitials(safeStoreName),
+                                              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 10),
+                                        Text(
+                                          safeStoreName.isEmpty ? 'Ръчна Карта' : safeStoreName,
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.black87),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }
+
+                            // АКО Е ШАБЛОННА КАРТА
                             return FutureBuilder<Map<String, dynamic>?>(
-                              future: _supabase.from('card_templates').select().eq('id', card['template_id']).maybeSingle(),
+                              future: _supabase.from('card_templates').select().eq('id', rawTemplateId as Object).maybeSingle(),
                               builder: (context, snapshot) {
-                                final logoUrl = snapshot.data?['logo_url'] ?? '';
+                                final logoUrl = snapshot.data?['logo_url']?.toString() ?? '';
+
                                 return InkWell(
                                   onTap: () => Navigator.push(context, createSmoothRoute(CardDisplayScreen(card: card))),
                                   child: Container(
@@ -90,7 +153,7 @@ class _CardsScreenState extends State<CardsScreen> {
                                               padding: const EdgeInsets.all(12),
                                               child: Image.network(logoUrl, fit: BoxFit.contain),
                                             )
-                                          : Text(card['store_name'] ?? 'Карта'),
+                                          : Text(safeStoreName.isEmpty ? 'Карта' : safeStoreName),
                                     ),
                                   ),
                                 );
@@ -107,7 +170,6 @@ class _CardsScreenState extends State<CardsScreen> {
     );
   }
 
-  /// Build empty state UI (ЗАПАЗЕН НА 100% ОТ ТВОЯ КОД)
   Widget _buildEmptyState(BuildContext context) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -138,11 +200,7 @@ class _CardsScreenState extends State<CardsScreen> {
               child: Text(
                 'Нямате добавени карти',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Color(0xFF9CA3AF),
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
             const SizedBox(height: 10),
@@ -151,16 +209,12 @@ class _CardsScreenState extends State<CardsScreen> {
               child: Text(
                 'Натиснете бутона по-долу или добавете карта от главното меню.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Color(0xFF9CA3AF),
-                  fontSize: 13,
-                ),
+                style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
               ),
             ),
             const SizedBox(height: 30),
             GestureDetector(
               onTap: () async {
-                // Изчакваме да се върне от екрана за добавяне и презареждаме картите
                 await Navigator.push(context, createSmoothRoute(const AddCardScreen()));
               },
               child: Container(
@@ -173,27 +227,15 @@ class _CardsScreenState extends State<CardsScreen> {
                     end: Alignment.centerRight,
                   ),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: const Color(0xFF2E30AD),
-                    width: 1,
-                  ),
+                  border: Border.all(color: const Color(0xFF2E30AD), width: 1),
                   boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.20),
-                      offset: const Offset(0, 15),
-                      blurRadius: 15,
-                      spreadRadius: 0,
-                    ),
+                    BoxShadow(color: Colors.black.withOpacity(0.20), offset: const Offset(0, 15), blurRadius: 15),
                   ],
                 ),
                 child: const Center(
                   child: Text(
                     'Добави Карта',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -201,49 +243,6 @@ class _CardsScreenState extends State<CardsScreen> {
           ],
         ),
       ],
-    );
-  }
-
-  /// Build cards list UI with Grid View (ЗАПАЗЕН НА 100% ОТ ТВОЯ КОД)
-  Widget _buildCardsList(BuildContext context, List<Map<String, dynamic>> cards) {
-    return GridView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-        childAspectRatio: 1.0,
-      ),
-      itemCount: cards.length + 1, // +1 за бутона
-      itemBuilder: (context, index) {
-        if (index == cards.length) {
-          return _buildAddCardButton(context);
-        }
-
-        final card = cards[index];
-        return FutureBuilder<Map<String, dynamic>?>(
-          future: _supabase.from('card_templates').select().eq('id', card['template_id']).maybeSingle(),
-          builder: (context, snapshot) {
-            final logoUrl = snapshot.data?['logo_url'] ?? '';
-
-            return InkWell(
-              onTap: () => Navigator.push(context, createSmoothRoute(CardDisplayScreen(card: card))),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8)],
-                ),
-                child: Center(
-                  child: logoUrl.isNotEmpty
-                      ? Padding(padding: const EdgeInsets.all(12), child: Image.network(logoUrl, fit: BoxFit.contain))
-                      : Text(card['store_name'] ?? 'Карта'),
-                ),
-              ),
-            );
-          },
-        );
-      },
     );
   }
 
@@ -261,11 +260,7 @@ class _CardsScreenState extends State<CardsScreen> {
           ),
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.18),
-              offset: const Offset(0, 6),
-              blurRadius: 14,
-            ),
+            BoxShadow(color: Colors.black.withOpacity(0.18), offset: const Offset(0, 6), blurRadius: 14),
           ],
         ),
         child: Column(
@@ -281,43 +276,18 @@ class _CardsScreenState extends State<CardsScreen> {
                 border: Border.all(color: Colors.white.withOpacity(0.85), width: 2),
               ),
               child: const Center(
-                child: Icon(
-                  Icons.add,
-                  color: Colors.white,
-                  size: 28,
-                ),
+                child: Icon(Icons.add, color: Colors.white, size: 28),
               ),
             ),
             const SizedBox(height: 12),
             const Text(
               'нова карта',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
             ),
           ],
         ),
       ),
     );
-  }
-
-  // Помощна функция за зареждане на логото
-  Widget _buildImage(String source) {
-    if (source.startsWith('http')) {
-      return Image.network(
-        source,
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) => const Icon(Icons.credit_card, size: 32, color: Colors.grey),
-      );
-    } else {
-      return Image.asset(
-        source,
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) => const Icon(Icons.credit_card, size: 32, color: Colors.grey),
-      );
-    }
   }
 }
