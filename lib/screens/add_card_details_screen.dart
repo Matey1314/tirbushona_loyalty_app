@@ -1,11 +1,10 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_barcode_scanner/flutter_barcode_scanner.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:tirbushona_loyalty_app/services/cards_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AddCardDetailsScreen extends StatefulWidget {
-  final Map<String, String> brand;
+  final Map<String, dynamic> brand;
 
   const AddCardDetailsScreen({
     super.key,
@@ -20,9 +19,13 @@ class _AddCardDetailsScreenState extends State<AddCardDetailsScreen> {
   String? _cardNumber;
   String? _additionalNotes;
   final ImagePicker _picker = ImagePicker();
+  bool _isSaving = false;
 
   @override
   Widget build(BuildContext context) {
+    // Взимаме логото от базата данни
+    final logoUrl = widget.brand['logo_url'] ?? 'assets/images/banner.png';
+
     return Scaffold(
       backgroundColor: const Color(0xFFE9EDF4),
       appBar: AppBar(
@@ -51,7 +54,7 @@ class _AddCardDetailsScreenState extends State<AddCardDetailsScreen> {
           children: [
             const SizedBox(height: 20),
             
-            // 1. Card Preview Container
+            // 1. Голямата бяла кутия с логото (Твоят дизайн)
             Center(
               child: Container(
                 width: 343,
@@ -71,12 +74,7 @@ class _AddCardDetailsScreenState extends State<AddCardDetailsScreen> {
                   borderRadius: BorderRadius.circular(16),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
-                    child: Image.asset(
-                      widget.brand['logo']!,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) =>
-                          const Icon(Icons.broken_image, color: Colors.grey),
-                    ),
+                    child: _buildImage(logoUrl),
                   ),
                 ),
               ),
@@ -84,45 +82,24 @@ class _AddCardDetailsScreenState extends State<AddCardDetailsScreen> {
             
             const SizedBox(height: 15),
 
-            // 2. Pagination Dots
+            // 2. Трите точки (Pagination Dots)
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: Colors.grey,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
+                Container(width: 8, height: 8, decoration: BoxDecoration(color: Colors.grey, borderRadius: BorderRadius.circular(4))),
                 const SizedBox(width: 6),
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFDC2626),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
+                Container(width: 8, height: 8, decoration: BoxDecoration(color: const Color(0xFFDC2626), borderRadius: BorderRadius.circular(4))),
                 const SizedBox(width: 6),
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: Colors.grey,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
+                Container(width: 8, height: 8, decoration: BoxDecoration(color: Colors.grey, borderRadius: BorderRadius.circular(4))),
               ],
             ),
 
             const SizedBox(height: 25),
 
-            // 3. Action Buttons
+            // 3. Четирите бели бутона (Твоят дизайн)
             _buildOptionButton(
-              CupertinoIcons.barcode,
-              'Сканирай баркода на картата',
+              Icons.qr_code_scanner, // Икона за баркод
+              ' ',
               onTap: _scanBarcode,
             ),
             const SizedBox(height: 12),
@@ -143,9 +120,7 @@ class _AddCardDetailsScreenState extends State<AddCardDetailsScreen> {
                   false,
                   (value) {
                     setState(() => _cardNumber = value);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Номерът е запазен!')),
-                    );
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Номерът е въведен локално!')));
                   },
                 );
               },
@@ -162,9 +137,7 @@ class _AddCardDetailsScreenState extends State<AddCardDetailsScreen> {
                   true,
                   (value) {
                     setState(() => _additionalNotes = value);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Бележката е запазена!')),
-                    );
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Бележката е въведена!')));
                   },
                 );
               },
@@ -172,43 +145,26 @@ class _AddCardDetailsScreenState extends State<AddCardDetailsScreen> {
 
             const SizedBox(height: 30),
 
-            // Card Number Display (if scanned or entered)
+            // Визуализация на въведения номер, за да го вижда потребителят
             if (_cardNumber != null && _cardNumber!.isNotEmpty)
               Center(
                 child: Column(
                   children: [
                     const Text(
                       'Номер на картата:',
-                      style: TextStyle(
-                        color: Color(0xFF9CA3AF),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 12, fontWeight: FontWeight.w500),
                     ),
                     const SizedBox(height: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(10),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            offset: const Offset(0, 2),
-                            blurRadius: 4,
-                          ),
-                        ],
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), offset: const Offset(0, 2), blurRadius: 4)],
                       ),
                       child: Text(
                         _cardNumber!,
-                        style: const TextStyle(
-                          color: Colors.black,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: const TextStyle(color: Colors.black, fontSize: 14, fontWeight: FontWeight.bold),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -216,10 +172,10 @@ class _AddCardDetailsScreenState extends State<AddCardDetailsScreen> {
                 ),
               ),
 
-            // 4. Save Button
+            // 4. Големият главен бутон за запазване (ДОБАВИ КАРТА)
             Center(
               child: GestureDetector(
-                onTap: _saveCard,
+                onTap: _isSaving ? null : _saveCard,
                 child: Container(
                   width: 343,
                   height: 55,
@@ -231,172 +187,92 @@ class _AddCardDetailsScreenState extends State<AddCardDetailsScreen> {
                       end: Alignment.centerRight,
                     ),
                     boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.20),
-                        offset: const Offset(0, 15),
-                        blurRadius: 15,
-                      ),
+                      BoxShadow(color: Colors.black.withOpacity(0.20), offset: const Offset(0, 15), blurRadius: 15),
                     ],
                   ),
-                  child: const Center(
-                    child: Text(
-                      'ДОБАВИ КАРТА',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                  child: Center(
+                    child: _isSaving
+                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Text(
+                            'ДОБАВИ КАРТА',
+                            style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                          ),
                   ),
                 ),
               ),
             ),
 
-            const SizedBox(height: 30),
+            const SizedBox(height: 40),
           ],
         ),
       ),
     );
   }
 
+  // Помощна функция за логото
+  Widget _buildImage(String source) {
+    if (source.startsWith('http')) {
+      return Image.network(source, fit: BoxFit.contain, errorBuilder: (c, e, s) => const Icon(Icons.broken_image, color: Colors.grey, size: 40));
+    } else {
+      return Image.asset(source, fit: BoxFit.contain, errorBuilder: (c, e, s) => const Icon(Icons.broken_image, color: Colors.grey, size: 40));
+    }
+  }
+
+  // Функция за сканиране
   Future<void> _scanBarcode() async {
     try {
-      String barcodeScanRes = await FlutterBarcodeScanner.scanBarcode(
-        '#DC2626', // Red line color to match our theme
-        'Отказ',   // Cancel button text
-        true,      // Show flash icon
-        ScanMode.BARCODE, // Scan 1D barcodes
-      );
-
-      // If the user didn't cancel the scan (-1 is the default cancel value)
+      String barcodeScanRes = await FlutterBarcodeScanner.scanBarcode('#DC2626', 'Отказ', true, ScanMode.BARCODE);
       if (barcodeScanRes != '-1') {
-        setState(() {
-          _cardNumber = barcodeScanRes;
-        });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Баркодът е сканиран успешно!')),
-          );
-        }
+        setState(() => _cardNumber = barcodeScanRes);
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Баркодът е сканиран!')));
       }
     } catch (e) {
       debugPrint('Грешка при сканиране: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Възникна грешка при сканирането.')),
-        );
-      }
     }
   }
 
+  // Функция за галерия
   Future<void> _pickImageFromGallery() async {
     try {
-      // Pick an image from the gallery
       final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-
-      if (image != null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Снимката е добавена успешно!')),
-          );
-        }
+      if (image != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Снимката е добавена!')));
       }
     } catch (e) {
-      debugPrint('Грешка при избор на снимка: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Възникна грешка при отваряне на галерията.')),
-        );
-      }
+      debugPrint('Грешка: $e');
     }
   }
 
-  void _showInputBottomSheet(
-    BuildContext context,
-    String title,
-    String hint,
-    bool isNotes,
-    Function(String) onSave,
-  ) {
+  // Долен екран (BottomSheet) за въвеждане на текст/номер
+  void _showInputBottomSheet(BuildContext context, String title, String hint, bool isNotes, Function(String) onSave) {
     final TextEditingController controller = TextEditingController();
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
         return Container(
           color: Colors.white,
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-            left: 20,
-            right: 20,
-            top: 20,
-          ),
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 20, left: 20, right: 20, top: 20),
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
+                Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black)),
                 const SizedBox(height: 16),
                 TextField(
                   controller: controller,
                   maxLines: isNotes ? 3 : 1,
-                  keyboardType:
-                      isNotes ? TextInputType.text : TextInputType.number,
-                  decoration: InputDecoration(
-                    hintText: hint,
-                    hintStyle: const TextStyle(
-                      color: Color(0xFF9CA3AF),
-                      fontSize: 14,
-                    ),
-                    filled: true,
-                    fillColor: const Color(0xFFF1F5F9),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                  ),
+                  keyboardType: isNotes ? TextInputType.text : TextInputType.number,
+                  decoration: InputDecoration(hintText: hint, filled: true, fillColor: const Color(0xFFF1F5F9), border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none)),
                 ),
                 const SizedBox(height: 16),
                 Center(
                   child: ElevatedButton(
-                    onPressed: () {
-                      onSave(controller.text);
-                      Navigator.pop(context);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2563EB),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text(
-                      'Запази',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    onPressed: () { onSave(controller.text); Navigator.pop(context); },
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB), padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                    child: const Text('Запази', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
@@ -407,11 +283,8 @@ class _AddCardDetailsScreenState extends State<AddCardDetailsScreen> {
     );
   }
 
-  Widget _buildOptionButton(
-    IconData icon,
-    String text, {
-    required VoidCallback onTap,
-  }) {
+  // Дизайн на 4-те бели бутона
+  Widget _buildOptionButton(IconData icon, String text, {required VoidCallback onTap}) {
     return Center(
       child: GestureDetector(
         onTap: onTap,
@@ -421,31 +294,14 @@ class _AddCardDetailsScreenState extends State<AddCardDetailsScreen> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(10),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.10),
-                offset: const Offset(0, 2),
-                blurRadius: 4,
-              ),
-            ],
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.10), offset: const Offset(0, 2), blurRadius: 4)],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                icon,
-                color: Colors.black,
-                size: 20,
-              ),
+              Icon(icon, color: Colors.black, size: 20),
               const SizedBox(width: 12),
-              Text(
-                text,
-                style: const TextStyle(
-                  color: Colors.black,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              Text(text, style: const TextStyle(color: Colors.black, fontSize: 13, fontWeight: FontWeight.bold)),
             ],
           ),
         ),
@@ -453,38 +309,40 @@ class _AddCardDetailsScreenState extends State<AddCardDetailsScreen> {
     );
   }
 
-  /// Save card to the static _myCards list
-  void _saveCard() {
-    // Validate that card number is provided
+  // ИСТИНСКИЯТ ЗАПИС КЪМ БАЗАТА ДАННИ
+  Future<void> _saveCard() async {
     if (_cardNumber == null || _cardNumber!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Моля, добавете номер на картата!'),
-          backgroundColor: Color(0xFFDC2626),
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Моля, добавете номер на картата!'), backgroundColor: Color(0xFFDC2626)));
       return;
     }
 
-    // Add card to CardsService
-    CardsService.addCard({
-      'name': widget.brand['name'],
-      'logo': widget.brand['logo'],
-      'number': _cardNumber,
-      'notes': _additionalNotes,
-    });
+    setState(() => _isSaving = true);
 
-    // Show success message
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Картата е добавена успешно!'),
-        backgroundColor: Color(0xFF16A34A),
-      ),
-    );
+    try {
+      final supabase = Supabase.instance.client;
+      final userId = supabase.auth.currentUser?.id;
 
-    // Pop the details screen
-    Navigator.of(context).pop();
-    // Pop the brand selection list screen to return to the main grid
-    Navigator.of(context).pop();
+      if (userId != null) {
+        await supabase.from('loyalty_cards').insert({
+          'user_id': userId,
+          'template_id': widget.brand['id'],
+          'store_name': widget.brand['name'],
+          'card_number': _cardNumber,
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Картата е добавена успешно!'), backgroundColor: Color(0xFF16A34A)));
+          
+          // Затваряме два пъти, за да се върнем на началния екран с картите
+          Navigator.of(context).pop(); 
+          Navigator.of(context).pop(); 
+        }
+      }
+    } catch (e) {
+      debugPrint('Грешка при запис: $e');
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Възникна грешка.'), backgroundColor: Color(0xFFDC2626)));
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 }

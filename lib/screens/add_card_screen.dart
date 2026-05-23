@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tirbushona_loyalty_app/main.dart';
 import 'add_card_details_screen.dart';
 
@@ -11,26 +12,37 @@ class AddCardScreen extends StatefulWidget {
 
 class _AddCardScreenState extends State<AddCardScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final _supabase = Supabase.instance.client;
   
-  // Mock brand data with actual asset paths
-  final List<Map<String, String>> _brands = [
-    {'name': 'Billa', 'logo': 'assets/images/billa-logo.png'},
-    {'name': 'Lidl', 'logo': 'assets/images/lidl-logo.png'},
-    {'name': 'Kaufland', 'logo': 'assets/images/kaufland-logo.png'},
-    {'name': 'Metro', 'logo': 'assets/images/metro-logo.png'},
-    {'name': 'OMV', 'logo': 'assets/images/omv-logo.png'},
-    {'name': 'IKEA', 'logo': 'assets/images/ikea-logo.png'},
-    {'name': 'Teodor', 'logo': 'assets/images/teodor-logo.png'},
-  ];
-
-  late List<Map<String, String>> filteredBrands;
+  // Празни списъци, които ще напълним от базата данни
+  List<Map<String, dynamic>> _brands = [];
+  List<Map<String, dynamic>> filteredBrands = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    filteredBrands = _brands;
+    _fetchBrandsFromDatabase();
   }
 
+  // Изтегляне на шаблоните (магазините) от Supabase
+  Future<void> _fetchBrandsFromDatabase() async {
+    try {
+      final data = await _supabase.from('card_templates').select().order('name');
+      if (mounted) {
+        setState(() {
+          _brands = List<Map<String, dynamic>>.from(data);
+          filteredBrands = _brands; // Първоначално показваме всички
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Грешка при зареждане на магазините: $e');
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // Логиката на търсачката остава същата, просто работи с динамичните данни
   void _filterBrands(String query) {
     setState(() {
       if (query.isEmpty) {
@@ -38,7 +50,7 @@ class _AddCardScreenState extends State<AddCardScreen> {
       } else {
         filteredBrands = _brands
             .where((brand) =>
-                brand['name']!.toLowerCase().contains(query.toLowerCase()))
+                (brand['name'] ?? '').toString().toLowerCase().contains(query.toLowerCase()))
             .toList();
       }
     });
@@ -116,7 +128,9 @@ class _AddCardScreenState extends State<AddCardScreen> {
 
             // Brand List
             Expanded(
-              child: filteredBrands.isEmpty
+              child: _isLoading 
+                ? const Center(child: CircularProgressIndicator())
+                : filteredBrands.isEmpty
                   ? Center(
                       child: Text(
                         'Няма резултати за "${_searchController.text}"',
@@ -131,6 +145,8 @@ class _AddCardScreenState extends State<AddCardScreen> {
                       itemCount: filteredBrands.length,
                       itemBuilder: (context, index) {
                         final brand = filteredBrands[index];
+                        final logoUrl = brand['logo_url'] ?? 'assets/images/banner.png'; // Дефолтна картинка
+                        
                         return GestureDetector(
                           onTap: () {
                             Navigator.push(
@@ -160,8 +176,8 @@ class _AddCardScreenState extends State<AddCardScreen> {
                                 children: [
                                   // Logo - Exact Figma Dimensions 75x45
                                   Container(
-                                    width: 75, // Exact Figma width
-                                    height: 45, // Exact Figma height
+                                    width: 75,
+                                    height: 45,
                                     decoration: BoxDecoration(
                                       color: Colors.white,
                                       borderRadius: BorderRadius.circular(8),
@@ -173,22 +189,16 @@ class _AddCardScreenState extends State<AddCardScreen> {
                                         ),
                                       ],
                                     ),
-                                    // A tiny padding so the logo doesn't touch the absolute edge of the white box
                                     padding: const EdgeInsets.all(4.0),
                                     child: Center(
-                                      child: Image.asset(
-                                        brand['logo']!,
-                                        // BoxFit.contain ensures the logo scales perfectly within the 75x45 rectangle without cropping
-                                        fit: BoxFit.contain,
-                                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, color: Colors.grey, size: 24),
-                                      ),
+                                      child: _buildImage(logoUrl), // Ползваме помощната функция за логото
                                     ),
                                   ),
                                   const SizedBox(width: 15),
                                   // Brand Name - bold black text
                                   Expanded(
                                     child: Text(
-                                      brand['name']!,
+                                      brand['name'] ?? 'Неизвестен',
                                       style: const TextStyle(
                                         color: Colors.black,
                                         fontSize: 16,
@@ -231,7 +241,7 @@ class _AddCardScreenState extends State<AddCardScreen> {
                   GestureDetector(
                     onTap: () {
                       debugPrint('Add card from here...');
-                      // Navigate to add card form
+                      // Navigate to add custom card form
                     },
                     child: Container(
                       width: double.infinity,
@@ -265,6 +275,65 @@ class _AddCardScreenState extends State<AddCardScreen> {
                     ),
                   ),
                 ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Помощна функция за зареждане на логото (онлайн или локално)
+  Widget _buildImage(String source) {
+    if (source.startsWith('http')) {
+      return Image.network(
+        source,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, color: Colors.grey, size: 24),
+      );
+    } else {
+      return Image.asset(
+        source,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, color: Colors.grey, size: 24),
+      );
+    }
+  }
+}
+
+// Прост екран за детайли при добавяне на карта (замества липсващия файл/клас)
+class AddCardDetailsScreen extends StatelessWidget {
+  final Map<String, dynamic> brand;
+
+  const AddCardDetailsScreen({super.key, required this.brand});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(brand['name'] ?? 'Детайли на картата', style: const TextStyle(color: Colors.black)),
+        backgroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.black),
+        elevation: 0,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(child: Image.asset('assets/images/banner.png', height: 80, fit: BoxFit.contain)),
+            const SizedBox(height: 20),
+            Text(brand['name'] ?? 'Неизвестен', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            Text(brand['description'] ?? ''),
+            const Spacer(),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                child: const Text('Добави карта'),
               ),
             ),
           ],

@@ -387,6 +387,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 }
 
                                 return _buildTransactionCard(
+                                  receiptId: receipt['id'].toString(),
                                   date: formattedDate,
                                   totalAmount: '$totalAmount лв.',
                                   pointsText: pointsText,
@@ -650,6 +651,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildTransactionCard({
+    required String receiptId,
     required String date,
     required String totalAmount,
     required String pointsText,
@@ -661,7 +663,9 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: () {
           Navigator.push(
             context,
-            createSmoothRoute(const ReceiptDetailsScreen()),
+            MaterialPageRoute(
+              builder: (context) => ReceiptDetailsScreen(receiptId: receiptId),
+            ),
           );
         },
         borderRadius: BorderRadius.circular(16),
