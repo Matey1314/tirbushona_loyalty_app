@@ -54,7 +54,7 @@ class _AddCardDetailsScreenState extends State<AddCardDetailsScreen> {
           children: [
             const SizedBox(height: 20),
             
-            // 1. Голямата бяла кутия с логото (Твоят дизайн)
+            // 1. Голямата бяла кутия с логото (Дизайн 1:1)
             Center(
               child: Container(
                 width: 343,
@@ -64,7 +64,7 @@ class _AddCardDetailsScreenState extends State<AddCardDetailsScreen> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.20),
+                      color: Colors.black.withOpacity(0.10),
                       offset: const Offset(0, 10),
                       blurRadius: 20,
                     ),
@@ -86,20 +86,20 @@ class _AddCardDetailsScreenState extends State<AddCardDetailsScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(width: 8, height: 8, decoration: BoxDecoration(color: Colors.grey, borderRadius: BorderRadius.circular(4))),
-                const SizedBox(width: 6),
                 Container(width: 8, height: 8, decoration: BoxDecoration(color: const Color(0xFFDC2626), borderRadius: BorderRadius.circular(4))),
                 const SizedBox(width: 6),
-                Container(width: 8, height: 8, decoration: BoxDecoration(color: Colors.grey, borderRadius: BorderRadius.circular(4))),
+                Container(width: 8, height: 8, decoration: BoxDecoration(color: Colors.grey.shade400, borderRadius: BorderRadius.circular(4))),
+                const SizedBox(width: 6),
+                Container(width: 8, height: 8, decoration: BoxDecoration(color: Colors.grey.shade400, borderRadius: BorderRadius.circular(4))),
               ],
             ),
 
             const SizedBox(height: 25),
 
-            // 3. Четирите бели бутона (Твоят дизайн)
+            // 3. Четирите бели бутона
             _buildOptionButton(
-              Icons.qr_code_scanner, // Икона за баркод
-              ' ',
+              Icons.qr_code_scanner, 
+              'Сканирай баркода на картата',
               onTap: _scanBarcode,
             ),
             const SizedBox(height: 12),
@@ -120,7 +120,6 @@ class _AddCardDetailsScreenState extends State<AddCardDetailsScreen> {
                   false,
                   (value) {
                     setState(() => _cardNumber = value);
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Номерът е въведен локално!')));
                   },
                 );
               },
@@ -137,7 +136,6 @@ class _AddCardDetailsScreenState extends State<AddCardDetailsScreen> {
                   true,
                   (value) {
                     setState(() => _additionalNotes = value);
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Бележката е въведена!')));
                   },
                 );
               },
@@ -218,13 +216,38 @@ class _AddCardDetailsScreenState extends State<AddCardDetailsScreen> {
     }
   }
 
+  // Дизайн на 4-те бели бутона
+  Widget _buildOptionButton(IconData icon, String text, {required VoidCallback onTap}) {
+    return Center(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 343,
+          height: 50,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), offset: const Offset(0, 2), blurRadius: 4)],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: Colors.black, size: 20),
+              const SizedBox(width: 12),
+              Text(text, style: const TextStyle(color: Colors.black, fontSize: 13, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   // Функция за сканиране
   Future<void> _scanBarcode() async {
     try {
       String barcodeScanRes = await FlutterBarcodeScanner.scanBarcode('#DC2626', 'Отказ', true, ScanMode.BARCODE);
       if (barcodeScanRes != '-1') {
         setState(() => _cardNumber = barcodeScanRes);
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Баркодът е сканиран!')));
       }
     } catch (e) {
       debugPrint('Грешка при сканиране: $e');
@@ -283,32 +306,6 @@ class _AddCardDetailsScreenState extends State<AddCardDetailsScreen> {
     );
   }
 
-  // Дизайн на 4-те бели бутона
-  Widget _buildOptionButton(IconData icon, String text, {required VoidCallback onTap}) {
-    return Center(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 343,
-          height: 50,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.10), offset: const Offset(0, 2), blurRadius: 4)],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: Colors.black, size: 20),
-              const SizedBox(width: 12),
-              Text(text, style: const TextStyle(color: Colors.black, fontSize: 13, fontWeight: FontWeight.bold)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   // ИСТИНСКИЯТ ЗАПИС КЪМ БАЗАТА ДАННИ
   Future<void> _saveCard() async {
     if (_cardNumber == null || _cardNumber!.isEmpty) {
@@ -323,11 +320,12 @@ class _AddCardDetailsScreenState extends State<AddCardDetailsScreen> {
       final userId = supabase.auth.currentUser?.id;
 
       if (userId != null) {
-        await supabase.from('loyalty_cards').insert({
+        await supabase.from('wallet_cards').insert({
           'user_id': userId,
           'template_id': widget.brand['id'],
           'store_name': widget.brand['name'],
           'card_number': _cardNumber,
+          'notes': _additionalNotes,
         });
 
         if (mounted) {

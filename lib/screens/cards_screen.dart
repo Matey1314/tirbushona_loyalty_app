@@ -13,43 +13,11 @@ class CardsScreen extends StatefulWidget {
 
 class _CardsScreenState extends State<CardsScreen> {
   final _supabase = Supabase.instance.client;
-  List<Map<String, dynamic>> _myCards = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchCards();
-  }
-
-  // Изтегляне на картите от Supabase
-  Future<void> _fetchCards() async {
-    setState(() => _isLoading = true);
-    try {
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) return;
-
-      // Взимаме картите на потребителя + данните за логото от каталога
-      final data = await _supabase
-          .from('loyalty_cards')
-          .select('*, card_templates(*)')
-          .eq('user_id', userId)
-          .order('created_at', ascending: false);
-
-      if (mounted) {
-        setState(() {
-          _myCards = List<Map<String, dynamic>>.from(data);
-        });
-      }
-    } catch (e) {
-      debugPrint('Грешка при зареждане на картите: $e');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
+    final userId = _supabase.auth.currentUser?.id;
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -68,13 +36,70 @@ class _CardsScreenState extends State<CardsScreen> {
             ),
             const SizedBox(height: 16),
             
-            // Conditional: Show loading, empty state or cards list
+            // Списъкът се обновява в реално време и е сортиран по най-използвани
             Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _myCards.isEmpty
-                      ? _buildEmptyState(context)
-                      : _buildCardsList(context, _myCards),
+              child: userId == null
+                  ? const Center(child: Text('Моля, влез в профила си.'))
+                  : StreamBuilder<List<Map<String, dynamic>>>(
+                      stream: _supabase
+                          .from('wallet_cards')
+                          .stream(primaryKey: ['id'])
+                          .eq('user_id', userId)
+                          .order('usage_count', ascending: false),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+
+                        final cards = snapshot.data!;
+
+                        if (cards.isEmpty) {
+                          return _buildEmptyState(context);
+                        }
+
+                        return GridView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 16,
+                            mainAxisSpacing: 16,
+                            childAspectRatio: 1.0,
+                          ),
+                          itemCount: cards.length + 1,
+                          itemBuilder: (context, index) {
+                            if (index == cards.length) {
+                              return _buildAddCardButton(context);
+                            }
+
+                            final card = cards[index];
+                            return FutureBuilder<Map<String, dynamic>?>(
+                              future: _supabase.from('card_templates').select().eq('id', card['template_id']).maybeSingle(),
+                              builder: (context, snapshot) {
+                                final logoUrl = snapshot.data?['logo_url'] ?? '';
+                                return InkWell(
+                                  onTap: () => Navigator.push(context, createSmoothRoute(CardDisplayScreen(card: card))),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(16),
+                                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8)],
+                                    ),
+                                    child: Center(
+                                      child: logoUrl.isNotEmpty
+                                          ? Padding(
+                                              padding: const EdgeInsets.all(12),
+                                              child: Image.network(logoUrl, fit: BoxFit.contain),
+                                            )
+                                          : Text(card['store_name'] ?? 'Карта'),
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        );
+                      },
+                    ),
             ),
           ],
         ),
@@ -137,7 +162,6 @@ class _CardsScreenState extends State<CardsScreen> {
               onTap: () async {
                 // Изчакваме да се върне от екрана за добавяне и презареждаме картите
                 await Navigator.push(context, createSmoothRoute(const AddCardScreen()));
-                _fetchCards();
               },
               child: Container(
                 width: 180,
@@ -183,109 +207,100 @@ class _CardsScreenState extends State<CardsScreen> {
   /// Build cards list UI with Grid View (ЗАПАЗЕН НА 100% ОТ ТВОЯ КОД)
   Widget _buildCardsList(BuildContext context, List<Map<String, dynamic>> cards) {
     return GridView.builder(
-      padding: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
-        childAspectRatio: 1.3,
+        childAspectRatio: 1.0,
       ),
-      itemCount: cards.length + 1,
+      itemCount: cards.length + 1, // +1 за бутона
       itemBuilder: (context, index) {
-        // Бутонът "Нова карта" винаги е последен
         if (index == cards.length) {
-          return GestureDetector(
-            onTap: () async {
-              await Navigator.push(context, createSmoothRoute(const AddCardScreen()));
-              _fetchCards();
-            },
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.10),
-                    offset: const Offset(0, 2),
-                    blurRadius: 8,
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFDC2626),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.add,
-                        color: Colors.white,
-                        size: 28,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'нова карта',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
+          return _buildAddCardButton(context);
         }
 
-        // Дизайнът на самите карти
         final card = cards[index];
-        final template = card['card_templates'] ?? {};
-        final logoSource = template['logo_url'] ?? 'assets/images/banner.png'; // Дефолтна снимка, ако няма
+        return FutureBuilder<Map<String, dynamic>?>(
+          future: _supabase.from('card_templates').select().eq('id', card['template_id']).maybeSingle(),
+          builder: (context, snapshot) {
+            final logoUrl = snapshot.data?['logo_url'] ?? '';
 
-        return InkWell(
-          onTap: () {
-            Navigator.push(context, createSmoothRoute(CardDisplayScreen(card: card)));
-          },
-          child: Container(
-            height: 120,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.10),
-                  offset: const Offset(0, 2),
-                  blurRadius: 8,
-                ),
-              ],
-            ),
-            child: Center(
+            return InkWell(
+              onTap: () => Navigator.push(context, createSmoothRoute(CardDisplayScreen(card: card))),
               child: Container(
-                width: 120,
-                height: 75,
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8)],
                 ),
-                padding: const EdgeInsets.all(8),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: _buildImage(logoSource),
+                child: Center(
+                  child: logoUrl.isNotEmpty
+                      ? Padding(padding: const EdgeInsets.all(12), child: Image.network(logoUrl, fit: BoxFit.contain))
+                      : Text(card['store_name'] ?? 'Карта'),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildAddCardButton(BuildContext context) {
+    return GestureDetector(
+      onTap: () async {
+        await Navigator.push(context, createSmoothRoute(const AddCardScreen()));
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFDC2626), Color(0xFF2563EB)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.18),
+              offset: const Offset(0, 6),
+              blurRadius: 14,
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.18),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white.withOpacity(0.85), width: 2),
+              ),
+              child: const Center(
+                child: Icon(
+                  Icons.add,
+                  color: Colors.white,
+                  size: 28,
                 ),
               ),
             ),
-          ),
-        );
-      },
+            const SizedBox(height: 12),
+            const Text(
+              'нова карта',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
