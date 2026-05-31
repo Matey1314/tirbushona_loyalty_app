@@ -308,20 +308,69 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ],
                                 ),
                                 const SizedBox(height: 12),
-                                Text(
-                                  '${_xpayBalance.toStringAsFixed(2)} €',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 42,
-                                    fontWeight: FontWeight.bold,
-                                    shadows: [
-                                      Shadow(
-                                        offset: const Offset(0, 2),
-                                        blurRadius: 4.0,
-                                        color: Colors.black.withOpacity(0.25),
+                                StreamBuilder<List<Map<String, dynamic>>>(
+                                  stream: Supabase.instance.client
+                                      .from('receipts')
+                                      .stream(primaryKey: ['id'])
+                                      .eq('user_id', Supabase.instance.client.auth.currentUser!.id)
+                                      .order('date_issued', ascending: false)
+                                      .limit(1),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.hasError) {
+                                      print('Stream Error: ${snapshot.error}');
+                                      return const Text(
+                                        '0.00 €',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 42,
+                                          fontWeight: FontWeight.bold,
+                                          shadows: [
+                                            Shadow(
+                                              offset: Offset(0, 2),
+                                              blurRadius: 4.0,
+                                              color: Color.fromARGB(64, 0, 0, 0),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }
+                                    if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                                      return const Text(
+                                        '0.00 €',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 42,
+                                          fontWeight: FontWeight.bold,
+                                          shadows: [
+                                            Shadow(
+                                              offset: Offset(0, 2),
+                                              blurRadius: 4.0,
+                                              color: Color.fromARGB(64, 0, 0, 0),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }
+                                    
+                                    final rawBalance = snapshot.data![0]['balance_after_transaction'];
+                                    final double balance = (rawBalance is num) ? rawBalance.toDouble() : 0.0;
+                                    
+                                    return Text(
+                                      '${balance.toStringAsFixed(2)} €',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 42,
+                                        fontWeight: FontWeight.bold,
+                                        shadows: [
+                                          Shadow(
+                                            offset: const Offset(0, 2),
+                                            blurRadius: 4.0,
+                                            color: Colors.black.withOpacity(0.25),
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
+                                    );
+                                  },
                                 ),
                               ],
                             ),
@@ -372,10 +421,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
                                 // Логика за текста на бележката
                                 if (usedDouble > 0) {
-                                  pointsText = 'Приспаднато: -$usedDouble €';
+                                  pointsText = 'Приспаднато: -${usedDouble.toStringAsFixed(2)} €';
                                   isAccumulated = false;
                                 } else {
-                                  pointsText = 'Натрупано: +$pointsDouble €';
+                                  pointsText = 'Натрупано: +${pointsDouble.toStringAsFixed(2)} €';
                                   isAccumulated = true;
                                 }
 

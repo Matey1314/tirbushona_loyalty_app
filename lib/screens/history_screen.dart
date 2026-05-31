@@ -303,10 +303,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final location = receipt['store_location'] as String? ?? 'Обект';
     final totalAmount = receipt['total_amount']?.toString() ?? '0.00';
     final pointsEarned = receipt['points_earned']?.toString() ?? '0.00';
-    final usedBonusMoney = receipt['used_bonus_money']?.toString() ?? '0.00';
+    final usedBonusMoneyStr = receipt['used_bonus_money']?.toString() ?? '0.00';
 
-    final double pointsDouble = double.tryParse(pointsEarned) ?? 0.0;
-    final double usedBonusDouble = double.tryParse(usedBonusMoney) ?? 0.0;
+    final double pointsEarnedDouble = double.tryParse(pointsEarned) ?? 0.0;
+    final double usedBonusMoneyDouble = double.tryParse(usedBonusMoneyStr) ?? 0.0;
 
     String formattedDate = '';
     try {
@@ -395,17 +395,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                if (usedBonusDouble > 0) ...[
+                if (usedBonusMoneyDouble > 0) ...[
                   const SizedBox(height: 2),
                   Text(
-                    'Приспаднато: -$usedBonusMoney €',
+                    'Приспаднато: -${usedBonusMoneyDouble.toStringAsFixed(2)} €',
                     style: const TextStyle(
                       color: Colors.red,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                ] else if (pointsDouble > 0) ...[
+                ] else if (pointsEarnedDouble > 0) ...[
                   const SizedBox(height: 2),
                   Text(
                     'Натрупано: +$pointsEarned €',

@@ -35,11 +35,12 @@ class ReceiptDetailsScreen extends StatelessWidget {
           final receipt = snapshot.data!;
           final items = receipt['receipt_items'] as List<dynamic>? ?? [];
 
-          final usedBonus = double.tryParse(receipt['points_redeemed']?.toString() ?? '0') ?? 0.0;
-          final pointsEarned = double.tryParse(receipt['points_earned']?.toString() ?? '0') ?? 0.0;
+          final usedBonus = double.tryParse(receipt['points_redeemed']?.toString() ?? '0') ?? 0;
+          final pointsEarned = double.tryParse(receipt['points_earned']?.toString() ?? '0') ?? 0;
           
-          // Четем си баланса директно от това, което е записано в самата бележка
-          final remainingBalance = double.tryParse(receipt['balance_after_transaction']?.toString() ?? '0') ?? 0.0;
+          // Display raw balance_after_transaction from database - NO CALCULATIONS
+          final balanceAfterTransaction = double.tryParse(receipt['balance_after_transaction']?.toString() ?? '0') ?? 0;
+          final cardNumber = receipt['card_number'] ?? '0000';
           final clientFullName = receipt['profiles']?['full_name'] ?? 'Потребител';
 
           return SingleChildScrollView(
@@ -115,16 +116,7 @@ class ReceiptDetailsScreen extends StatelessWidget {
 
                   _buildReceiptRow('НАЧИН НА ПЛАЩАНЕ', receipt['payment_method'] ?? 'В БРОЙ / КАРТА'),
                   const SizedBox(height: 6),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('ОБЩА СУМА ЕВРО', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                      Text(
-                        '${receipt['total_amount'] ?? '0.00'} €',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                      ),
-                    ],
-                  ),
+                  _buildTotalSummarySection(receipt, items),
                   _buildDottedDivider(),
 
                   const Center(
@@ -135,15 +127,15 @@ class ReceiptDetailsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   _buildReceiptRow('Клиент:', clientFullName),
-                  _buildReceiptRow('Карта №:', receipt['card_number'] ?? '0000'),
+                  _buildReceiptRow('Карта №:', cardNumber),
 
                   if (usedBonus > 0)
-                    _buildReceiptRow('Приспаднато:', '-${(usedBonus ?? 0.0).toStringAsFixed(2)} €', isRed: true, isBold: true)
+                    _buildReceiptRow('Приспаднато:', '-${usedBonus.toStringAsFixed(2)} €', isRed: true, isBold: true)
                   else if (pointsEarned > 0)
-                    _buildReceiptRow('Натрупано:', '+${(pointsEarned ?? 0.0).toStringAsFixed(2)} €', isGreen: true, isBold: true),
+                    _buildReceiptRow('Натрупано:', '+${pointsEarned.toStringAsFixed(2)} €', isGreen: true, isBold: true),
 
-                  // Тук използваме remainingBalance
-                  _buildReceiptRow('Налично:', '${(remainingBalance ?? 0.0).toStringAsFixed(2)} €', isBold: true),
+                  // Display raw balance_after_transaction from database - NO CALCULATIONS
+                  _buildReceiptRow('Налично:', '${balanceAfterTransaction.toStringAsFixed(2)} €', isBold: true),
 
                   _buildDottedDivider(),
                   const Center(
@@ -158,6 +150,75 @@ class ReceiptDetailsScreen extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildTotalSummarySection(Map<String, dynamic> receipt, List<dynamic> items) {
+    // Calculate original sum from all items
+    final originalSum = items.fold<double>(
+      0.0,
+      (sum, item) => sum + (double.tryParse(item['total_price']?.toString() ?? '0') ?? 0.0),
+    );
+
+    // Get final total amount
+    final finalTotal = double.tryParse(receipt['total_amount']?.toString() ?? '0') ?? 0.0;
+
+    // Calculate deducted amount
+    final deductedAmount = originalSum - finalTotal;
+
+    return Column(
+      children: [
+        // Row 1: Сума (Original Sum)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Сума:', style: TextStyle(fontSize: 13)),
+              Text(
+                '${originalSum.toStringAsFixed(2)} €',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.normal),
+              ),
+            ],
+          ),
+        ),
+        // Row 2: Приспаднато (Deducted - in RED)
+        if (deductedAmount > 0)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Приспаднато:',
+                  style: TextStyle(fontSize: 13, color: Colors.red, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  '- ${deductedAmount.toStringAsFixed(2)} €',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        // Row 3: Обща сума (Final Total)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Обща сума:', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+              Text(
+                '${finalTotal.toStringAsFixed(2)} €',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -229,8 +290,7 @@ class ReceiptDetailsScreen extends StatelessWidget {
   Future<Map<String, dynamic>?> _fetchFullReceipt(String id) async {
     final response = await Supabase.instance.client
         .from('receipts')
-        // Изчистена заявка - без loyalty_balance
-        .select('*, receipt_items(*), profiles(full_name)')
+        .select('id, company_name, store_name, store_address, vat_number, cashier_name, unp, terminal_num, system_num, payment_method, card_number, total_amount, points_earned, points_redeemed, balance_after_transaction, receipt_items(*), profiles(full_name)')
         .eq('id', id)
         .maybeSingle(); 
     return response;

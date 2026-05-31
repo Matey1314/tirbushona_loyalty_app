@@ -22,7 +22,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final userState = UserState();
   String? _profileImagePath;
   bool _isLoadingImage = false;
-  bool _isLoadingProfile = true;
 
   @override
   void initState() {
@@ -37,7 +36,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final userId = Supabase.instance.client.auth.currentUser?.id;
       if (userId == null) {
         debugPrint('User not authenticated');
-        setState(() => _isLoadingProfile = false);
         return;
       }
 
@@ -59,16 +57,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               profileData['logistic_card_number'] as String? ?? '';
           userState.userPhysicalCard.value =
               profileData['physical_card_number'] as String? ?? '';
-          _isLoadingProfile = false;
         });
-      } else if (mounted) {
-        setState(() => _isLoadingProfile = false);
       }
     } catch (e) {
       debugPrint('Error loading profile data: $e');
-      if (mounted) {
-        setState(() => _isLoadingProfile = false);
-      }
     }
   }
 
