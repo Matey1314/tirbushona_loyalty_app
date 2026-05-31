@@ -6,7 +6,6 @@ import 'package:tirbushona_loyalty_app/screens/cards_screen.dart';
 import 'package:tirbushona_loyalty_app/screens/history_screen.dart';
 import 'package:tirbushona_loyalty_app/screens/settings_screen.dart';
 import 'package:tirbushona_loyalty_app/screens/receipt_details_screen.dart';
-import 'package:tirbushona_loyalty_app/main.dart';
 import 'dart:async';
 
 class HomeScreen extends StatefulWidget {
@@ -22,6 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _userName = 'Потребител';
   String _physicalCardNumber = '';
   bool _isLoadingProfile = true;
+  double _xpayBalance = 0.0;
   StreamSubscription? _profileSubscription;
 
   @override
@@ -31,7 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// Subscribe to real-time profile updates via Supabase Stream
-  /// Fetches both user name and physical card number from profiles table
+  /// Fetches user name, physical card number, and loyalty balance from profiles table
   void _subscribeToProfileUpdates() {
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId != null) {
@@ -41,16 +41,20 @@ class _HomeScreenState extends State<HomeScreen> {
           .eq('id', userId)
           .listen((List<Map<String, dynamic>> data) {
             if (data.isNotEmpty && mounted) {
+              final cardNumber = data.first['physical_card_number'] as String? ?? '';
+              final loyaltyBalance = double.tryParse(data.first['loyalty_balance']?.toString() ?? '0') ?? 0.0;
+              
               setState(() {
                 _userName = data.first['full_name'] as String? ?? 'Потребител';
-                // Fetch the card number from the same row
-                _physicalCardNumber = data.first['physical_card_number'] as String? ?? '';
+                _physicalCardNumber = cardNumber;
+                _xpayBalance = loyaltyBalance;
                 _isLoadingProfile = false;
               });
             } else if (mounted) {
               setState(() {
                 _userName = 'Потребител';
                 _physicalCardNumber = '';
+                _xpayBalance = 0.0;
                 _isLoadingProfile = false;
               });
             }
@@ -305,7 +309,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                                 const SizedBox(height: 12),
                                 Text(
-                                  '${totalBalance.toStringAsFixed(2)} €',
+                                  '${_xpayBalance.toStringAsFixed(2)} €',
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 42,

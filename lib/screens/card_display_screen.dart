@@ -152,7 +152,7 @@ class _CardDisplayScreenState extends State<CardDisplayScreen> {
                   child: Center(
                     child: _isLoading 
                       ? const CircularProgressIndicator()
-                      : Image.network(_templateData?['logo_url'] ?? '', errorBuilder: (_,__,___) => const Icon(Icons.credit_card, size: 60)),
+                      : Image.network(_templateData?['logo_url'] ?? '', errorBuilder: (_,_,_) => const Icon(Icons.credit_card, size: 60)),
                   ),
                 ),
                 const SizedBox(height: 40),

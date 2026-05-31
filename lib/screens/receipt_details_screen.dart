@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ReceiptDetailsScreen extends StatelessWidget {
-  final String receiptId; // Вече приемаме динамично ID
+  final String receiptId;
 
   const ReceiptDetailsScreen({super.key, required this.receiptId});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F4F6), // Фонът около бона
+      backgroundColor: const Color(0xFFF3F4F6),
       appBar: AppBar(
         title: const Text(
           'Преглед на бон',
@@ -20,29 +20,31 @@ class ReceiptDetailsScreen extends StatelessWidget {
         iconTheme: const IconThemeData(color: Colors.black),
       ),
       body: FutureBuilder<Map<String, dynamic>?>(
-        // Взимаме бележката заедно с нейните артикули от Supabase
         future: _fetchFullReceipt(receiptId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Грешка: ${snapshot.error}'));
           }
           if (!snapshot.hasData || snapshot.data == null) {
             return const Center(child: Text('Бонът не беше намерен.'));
           }
 
           final receipt = snapshot.data!;
-          // Взимаме свързаните артикули
           final items = receipt['receipt_items'] as List<dynamic>? ?? [];
 
-          // Парсваме бонусните суми безопасно
-          final usedBonus = double.tryParse(receipt['used_bonus_money']?.toString() ?? '0') ?? 0.0;
+          final usedBonus = double.tryParse(receipt['points_redeemed']?.toString() ?? '0') ?? 0.0;
           final pointsEarned = double.tryParse(receipt['points_earned']?.toString() ?? '0') ?? 0.0;
-          final remainingBalance = double.tryParse(receipt['remaining_bonus_balance']?.toString() ?? '0') ?? 0.0;
+          
+          // Четем си баланса директно от това, което е записано в самата бележка
+          final remainingBalance = double.tryParse(receipt['balance_after_transaction']?.toString() ?? '0') ?? 0.0;
+          final clientFullName = receipt['profiles']?['full_name'] ?? 'Потребител';
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Container(
-              // Дизайнът на хартиената ролка
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(8),
@@ -58,12 +60,11 @@ class ReceiptDetailsScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Лого на Тирбушона най-горе
                   Center(
                     child: Column(
                       children: [
                         Image.asset(
-                          'assets/images/logo.png', // Увери се, че файлът е там
+                          'assets/images/logo.png',
                           height: 60,
                           fit: BoxFit.contain,
                           errorBuilder: (c, e, s) => const Icon(Icons.receipt_long, size: 50, color: Colors.grey),
@@ -76,9 +77,8 @@ class ReceiptDetailsScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                  _buildDottedDivider(), // Пунктирана линия
+                  _buildDottedDivider(),
 
-                  // Данни на Фирмата и Обекта (Центрирани)
                   Center(
                     child: Column(
                       children: [
@@ -87,7 +87,7 @@ class ReceiptDetailsScreen extends StatelessWidget {
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                         ),
                         const SizedBox(height: 2),
-                        Text(receipt['store_location'] ?? 'Железария Лагера', style: const TextStyle(fontSize: 13)),
+                        Text(receipt['store_name'] ?? 'Железария Лагера', style: const TextStyle(fontSize: 13)),
                         if (receipt['store_address'] != null)
                           Text(receipt['store_address'], textAlign: TextAlign.center, style: const TextStyle(fontSize: 12)),
                         Text('ЗДДС № ${receipt['vat_number'] ?? 'BG130863654'}', style: const TextStyle(fontSize: 13)),
@@ -96,8 +96,7 @@ class ReceiptDetailsScreen extends StatelessWidget {
                   ),
                   _buildDottedDivider(),
 
-                  // Фискална информация за оператора
-                  _buildReceiptRow('ИМЕ ОПЕРАТОР', receipt['operator_name'] ?? '-'),
+                  _buildReceiptRow('ИМЕ ОПЕРАТОР', receipt['cashier_name'] ?? '-'),
                   _buildReceiptRow('УНП:', receipt['unp'] ?? '-'),
                   const SizedBox(height: 6),
                   Row(
@@ -109,14 +108,11 @@ class ReceiptDetailsScreen extends StatelessWidget {
                   ),
                   _buildDottedDivider(),
 
-                  // СПИСЪК С АРТИКУЛИ
                   const Text('АРТИКУЛИ:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   const SizedBox(height: 8),
-                  // Луупваме през всички продукти
                   ...items.map((item) => _buildItemRow(item)),
                   _buildDottedDivider(),
 
-                  // ПЛАЩАНЕ И ОБЩА СУМА
                   _buildReceiptRow('НАЧИН НА ПЛАЩАНЕ', receipt['payment_method'] ?? 'В БРОЙ / КАРТА'),
                   const SizedBox(height: 6),
                   Row(
@@ -131,7 +127,6 @@ class ReceiptDetailsScreen extends StatelessWidget {
                   ),
                   _buildDottedDivider(),
 
-                  // ЕЛЕКТРОНЕН ПОРТФЕЙЛ (ЛОЯЛНА ПРОГРАМА)
                   const Center(
                     child: Text(
                       'ЕЛЕКТРОНЕН ПОРТФЕЙЛ',
@@ -139,19 +134,18 @@ class ReceiptDetailsScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  _buildReceiptRow('Клиент:', receipt['client_name'] ?? 'Потребител'),
+                  _buildReceiptRow('Клиент:', clientFullName),
                   _buildReceiptRow('Карта №:', receipt['card_number'] ?? '0000'),
 
-                  // Динамично показваме натрупано (зелено) или приспаднато (червено)
                   if (usedBonus > 0)
-                    _buildReceiptRow('Приспаднато:', '-${usedBonus.toStringAsFixed(2)} €', isRed: true, isBold: true)
+                    _buildReceiptRow('Приспаднато:', '-${(usedBonus ?? 0.0).toStringAsFixed(2)} €', isRed: true, isBold: true)
                   else if (pointsEarned > 0)
-                    _buildReceiptRow('Натрупано:', '+${pointsEarned.toStringAsFixed(2)} €', isGreen: true, isBold: true),
+                    _buildReceiptRow('Натрупано:', '+${(pointsEarned ?? 0.0).toStringAsFixed(2)} €', isGreen: true, isBold: true),
 
-                  _buildReceiptRow('Налично:', '${remainingBalance.toStringAsFixed(2)} €', isBold: true),
+                  // Тук използваме remainingBalance
+                  _buildReceiptRow('Налично:', '${(remainingBalance ?? 0.0).toStringAsFixed(2)} €', isBold: true),
 
                   _buildDottedDivider(),
-                  // Футър
                   const Center(
                     child: Text(
                       'Благодарим Ви за покупката!',
@@ -167,7 +161,6 @@ class ReceiptDetailsScreen extends StatelessWidget {
     );
   }
 
-  // Помощен метод за редове в касовия бон
   Widget _buildReceiptRow(String label, String value, {bool isGreen = false, bool isRed = false, bool isBold = false}) {
     Color textColor = Colors.black;
     if (isGreen) textColor = Colors.green;
@@ -192,7 +185,6 @@ class ReceiptDetailsScreen extends StatelessWidget {
     );
   }
 
-  // Помощен метод за изчертаване на един артикул
   Widget _buildItemRow(dynamic item) {
     final pName = item['product_name'] ?? 'Продукт';
     final qty = item['quantity'] ?? 1;
@@ -204,12 +196,12 @@ class ReceiptDetailsScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(pName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)), // Име на продукта - болд
+          Text(pName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('${qty}x ${uPrice.toStringAsFixed(2)}', style: const TextStyle(color: Colors.black54, fontSize: 13)),
-              Text('${tPrice.toStringAsFixed(2)} €', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)), // Тотал - болд
+              Text('${tPrice.toStringAsFixed(2)} €', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
             ],
           ),
         ],
@@ -217,13 +209,12 @@ class ReceiptDetailsScreen extends StatelessWidget {
     );
   }
 
-  // Пунктирана термо-линия
   Widget _buildDottedDivider() {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12.0),
       child: Row(
         children: List.generate(
-          40, // Брой точки
+          40,
           (index) => Expanded(
             child: Container(
               color: index % 2 == 0 ? Colors.transparent : Colors.grey[400],
@@ -235,13 +226,13 @@ class ReceiptDetailsScreen extends StatelessWidget {
     );
   }
 
-  // Функция за изтегляне на бележката + продуктите от Supabase чрез връзката им
   Future<Map<String, dynamic>?> _fetchFullReceipt(String id) async {
     final response = await Supabase.instance.client
         .from('receipts')
-        .select('*, receipt_items(*)')
+        // Изчистена заявка - без loyalty_balance
+        .select('*, receipt_items(*), profiles(full_name)')
         .eq('id', id)
-        .single();
+        .maybeSingle(); 
     return response;
   }
 }

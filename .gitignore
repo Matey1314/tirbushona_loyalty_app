@@ -43,3 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Скрити файлове с пароли и ключове (Добавено за сигурност)
+.env
+node_modules/

@@ -53,7 +53,7 @@ class _CardsScreenState extends State<CardsScreen> {
                       stream: _supabase
                           .from('wallet_cards')
                           .stream(primaryKey: ['id'])
-                          .eq('user_id', userId!) // Добавен '!' за 100% сигурност
+                          .eq('user_id', userId) // Добавен '!' за 100% сигурност
                           .order('usage_count', ascending: false),
                       builder: (context, snapshot) {
                         if (!snapshot.hasData) {
