@@ -7,6 +7,7 @@ import 'package:tirbushona_loyalty_app/screens/history_screen.dart';
 import 'package:tirbushona_loyalty_app/screens/settings_screen.dart';
 import 'package:tirbushona_loyalty_app/screens/receipt_details_screen.dart';
 import 'dart:async';
+import 'dart:math' show sin, pi;
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,7 +16,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with TickerProviderStateMixin {
   int _selectedIndex = 0;
   bool _isCardFlipped = false;
   String _userName = 'Потребител';
@@ -23,11 +25,30 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoadingProfile = true;
   double _xpayBalance = 0.0;
   StreamSubscription? _profileSubscription;
+  late AnimationController _bannerShakeController;
+  late Animation<double> _bannerShakeAnimation;
 
   @override
   void initState() {
     super.initState();
     _subscribeToProfileUpdates();
+    _initializeBannerShakeAnimation();
+  }
+
+  /// Initialize the shake animation for the banner card (Tirbushona logo)
+  /// Creates a 2.5 second horizontal shake effect that plays once on app load
+  void _initializeBannerShakeAnimation() {
+    _bannerShakeController = AnimationController(
+      duration: const Duration(milliseconds: 2500),
+      vsync: this,
+    );
+    
+    _bannerShakeAnimation = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _bannerShakeController, curve: Curves.easeInOut),
+    );
+    
+    // Start the shake animation once when the screen loads, then stop (no loop)
+    _bannerShakeController.forward();
   }
 
   /// Subscribe to real-time profile updates via Supabase Stream
@@ -70,6 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _profileSubscription?.cancel();
+    _bannerShakeController.dispose();
     super.dispose();
   }
 
@@ -93,7 +115,7 @@ class _HomeScreenState extends State<HomeScreen> {
           color: Colors.white,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               offset: const Offset(0, -4),
               blurRadius: 20,
             ),
@@ -155,7 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
                           valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.black.withOpacity(0.3),
+                            Colors.black.withValues(alpha: 0.3),
                           ),
                         ),
                       ),
@@ -278,7 +300,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.20),
+                                  color: Colors.black.withValues(alpha: 0.20),
                                   offset: const Offset(0, 4),
                                   blurRadius: 4,
                                   spreadRadius: 0,
@@ -365,7 +387,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           Shadow(
                                             offset: const Offset(0, 2),
                                             blurRadius: 4.0,
-                                            color: Colors.black.withOpacity(0.25),
+                                            color: Colors.black.withValues(alpha: 0.25),
                                           ),
                                         ],
                                       ),
@@ -442,7 +464,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 return _buildTransactionCard(
                                   receiptId: receipt['id'].toString(),
                                   date: formattedDate,
-                                  totalAmount: '$totalAmount лв.',
+                                  totalAmount: '$totalAmount €',
                                   pointsText: pointsText,
                                   isAccumulated: isAccumulated,
                                 );
@@ -482,8 +504,8 @@ class _HomeScreenState extends State<HomeScreen> {
               boxShadow: [
                 BoxShadow(
                   color: isSelected
-                      ? AppColors.gradientBlue.withOpacity(0.3)
-                      : Colors.black.withOpacity(0.03),
+                      ? AppColors.gradientBlue.withValues(alpha: 0.3)
+                      : Colors.black.withValues(alpha: 0.03),
                   offset: const Offset(0, 4),
                   blurRadius: 10,
                 ),
@@ -510,24 +532,35 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildCardFront() {
-    return Container(
-      key: const ValueKey('front'),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            offset: const Offset(0, 4),
-            blurRadius: 12,
+    return AnimatedBuilder(
+      animation: _bannerShakeAnimation,
+      builder: (context, child) {
+        // Create a horizontal shaking effect using sine wave motion on the X-axis
+        final shakeOffset = sin(_bannerShakeAnimation.value * pi * 8) * 4;
+        return Transform.translate(
+          offset: Offset(shakeOffset, 0),
+          child: child,
+        );
+      },
+      child: Container(
+        key: const ValueKey('front'),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              offset: const Offset(0, 4),
+              blurRadius: 12,
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Image.asset(
+            'assets/images/banner.png',
+            width: double.infinity,
+            fit: BoxFit.fitWidth,
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Image.asset(
-          'assets/images/banner.png',
-          width: double.infinity,
-          fit: BoxFit.fitWidth,
         ),
       ),
     );
@@ -622,7 +655,7 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       barrierDismissible: true,
-      barrierColor: Colors.black.withOpacity(0.6),
+      barrierColor: Colors.black.withValues(alpha: 0.6),
       builder: (context) {
         return GestureDetector(
           onTap: () => Navigator.of(context).pop(),
@@ -652,7 +685,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.20),
+                          color: Colors.black.withValues(alpha: 0.20),
                           offset: const Offset(0, 10),
                           blurRadius: 25,
                           spreadRadius: 0,
@@ -722,8 +755,8 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         },
         borderRadius: BorderRadius.circular(16),
-        splashColor: Colors.red.withOpacity(0.1),
-        highlightColor: Colors.red.withOpacity(0.05),
+        splashColor: Colors.red.withValues(alpha: 0.1),
+        highlightColor: Colors.red.withValues(alpha: 0.05),
         child: Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
@@ -732,7 +765,7 @@ class _HomeScreenState extends State<HomeScreen> {
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 offset: const Offset(0, 4),
                 blurRadius: 4,
               ),

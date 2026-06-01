@@ -25,7 +25,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     if (_selectedCategory == 'Всички') {
       return receipts;
     }
-    return receipts.where((receipt) => receipt['store_location'] == _selectedCategory).toList();
+    return receipts.where((receipt) => receipt['store_name'] == _selectedCategory).toList();
   }
 
   /// Calculate total for current month
@@ -135,7 +135,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            '${currentMonthTotal.toStringAsFixed(2)} лв.',
+                            '${currentMonthTotal.toStringAsFixed(2)} €',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 48,
@@ -300,7 +300,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Widget _buildReceiptCard(Map<String, dynamic> receipt) {
-    final location = receipt['store_location'] as String? ?? 'Обект';
+    final location = receipt['store_name'] as String? ?? 'Неизвестен обект';
     final totalAmount = receipt['total_amount']?.toString() ?? '0.00';
     final pointsEarned = receipt['points_earned']?.toString() ?? '0.00';
     final usedBonusMoneyStr = receipt['used_bonus_money']?.toString() ?? '0.00';
@@ -388,7 +388,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  '$totalAmount лв.',
+                  '$totalAmount €',
                   style: const TextStyle(
                     color: Colors.black,
                     fontSize: 14,
