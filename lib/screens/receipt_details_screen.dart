@@ -251,13 +251,43 @@ class ReceiptDetailsScreen extends StatelessWidget {
     final qty = item['quantity'] ?? 1;
     final uPrice = double.tryParse(item['unit_price']?.toString() ?? '0') ?? 0.0;
     final tPrice = double.tryParse(item['total_price']?.toString() ?? '0') ?? 0.0;
+    final isPromo = item['is_promo'] as bool? ?? false;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(pName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  pName,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: isPromo ? Colors.green : Colors.black,
+                  ),
+                ),
+              ),
+              if (isPromo)
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.green,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  child: const Text(
+                    'PROMO',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+            ],
+          ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
