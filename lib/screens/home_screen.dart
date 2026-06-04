@@ -23,20 +23,24 @@ class _HomeScreenState extends State<HomeScreen>
   String _userName = 'Потребител';
   String _physicalCardNumber = '';
   bool _isLoadingProfile = true;
-  double _xpayBalance = 0.0;
   StreamSubscription? _profileSubscription;
   late AnimationController _bannerShakeController;
   late Animation<double> _bannerShakeAnimation;
+
+  // ПРОМЕНЛИВИ ЗА ОЦЕНЯВАНЕТО
+  StreamSubscription? _receiptsSubscription;
+  bool _isShowingRatingDialog = false;
 
   @override
   void initState() {
     super.initState();
     _subscribeToProfileUpdates();
     _initializeBannerShakeAnimation();
+    
+    // СТАРТИРАМЕ СЛУШАЛКАТА ЗА НОВИ БЕЛЕЖКИ
+    _listenForUnratedReceipts();
   }
 
-  /// Initialize the shake animation for the banner card (Tirbushona logo)
-  /// Creates a 2.5 second horizontal shake effect that plays once on app load
   void _initializeBannerShakeAnimation() {
     _bannerShakeController = AnimationController(
       duration: const Duration(milliseconds: 2500),
@@ -47,12 +51,9 @@ class _HomeScreenState extends State<HomeScreen>
       CurvedAnimation(parent: _bannerShakeController, curve: Curves.easeInOut),
     );
     
-    // Start the shake animation once when the screen loads, then stop (no loop)
     _bannerShakeController.forward();
   }
 
-  /// Subscribe to real-time profile updates via Supabase Stream
-  /// Fetches user name, physical card number, and loyalty balance from profiles table
   void _subscribeToProfileUpdates() {
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId != null) {
@@ -63,19 +64,16 @@ class _HomeScreenState extends State<HomeScreen>
           .listen((List<Map<String, dynamic>> data) {
             if (data.isNotEmpty && mounted) {
               final cardNumber = data.first['physical_card_number'] as String? ?? '';
-              final loyaltyBalance = double.tryParse(data.first['loyalty_balance']?.toString() ?? '0') ?? 0.0;
               
               setState(() {
                 _userName = data.first['full_name'] as String? ?? 'Потребител';
                 _physicalCardNumber = cardNumber;
-                _xpayBalance = loyaltyBalance;
                 _isLoadingProfile = false;
               });
             } else if (mounted) {
               setState(() {
                 _userName = 'Потребител';
                 _physicalCardNumber = '';
-                _xpayBalance = 0.0;
                 _isLoadingProfile = false;
               });
             }
@@ -92,6 +90,7 @@ class _HomeScreenState extends State<HomeScreen>
   void dispose() {
     _profileSubscription?.cancel();
     _bannerShakeController.dispose();
+    _receiptsSubscription?.cancel();
     super.dispose();
   }
 
@@ -108,8 +107,6 @@ class _HomeScreenState extends State<HomeScreen>
           child: _buildScreenContent(),
         ),
       ),
-
-      // Pixel Perfect Navigation Bar
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -158,15 +155,12 @@ class _HomeScreenState extends State<HomeScreen>
     return SafeArea(
       child: Column(
         children: [
-          // Fixed Header Section (Greeting & Card)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 16),
-
-                // Header Section - Dynamic greeting text from Supabase
                 if (_isLoadingProfile)
                   SizedBox(
                     height: 22,
@@ -203,7 +197,6 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
                 const SizedBox(height: 20),
 
-                // Store Card Banner - 3D Flip Animation ONLY
                 GestureDetector(
                   onTap: () {
                     setState(() {
@@ -229,9 +222,7 @@ class _HomeScreenState extends State<HomeScreen>
                           child: Stack(
                             alignment: Alignment.center,
                             children: [
-                              // Front Card
                               _buildCardFront(),
-                              // Back Card (With Barcode and Clean Trigger Button inside)
                               if (isBack)
                                 Positioned.fill(
                                   child: Transform(
@@ -251,7 +242,6 @@ class _HomeScreenState extends State<HomeScreen>
             ),
           ),
 
-          // Dynamic Stream Section (Balance and Recent Transactions)
           Expanded(
             child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: userId != null
@@ -262,39 +252,25 @@ class _HomeScreenState extends State<HomeScreen>
                       .order('date_issued', ascending: false)
                   : const Stream.empty(),
               builder: (context, snapshot) {
-                double totalBalance = 0.0;
                 List<Map<String, dynamic>> recentReceipts = [];
 
                 if (snapshot.hasData && snapshot.data != null) {
                   final receipts = snapshot.data!;
-                  // Взимаме само последните 5 бона за началния екран
                   recentReceipts = receipts.take(5).toList(); 
-
-                  // Пресмятаме общия баланс: Всичко натрупано МИНУС всичко използвано
-                  for (var r in receipts) {
-                    final points = double.tryParse(r['points_earned']?.toString() ?? '0') ?? 0.0;
-                    final used = double.tryParse(r['used_bonus_money']?.toString() ?? '0') ?? 0.0;
-                    totalBalance += (points - used);
-                  }
                 }
 
                 return Column(
                   children: [
-                    // Balance Card & Title
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20.0),
                       child: Column(
                         children: [
-                          // Balance Card
                           Container(
                             width: double.infinity,
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(12),
                               gradient: const LinearGradient(
-                                colors: [
-                                  AppColors.gradientBlue,
-                                  AppColors.gradientRed,
-                                ],
+                                colors: [AppColors.gradientBlue, AppColors.gradientRed],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                               ),
@@ -303,17 +279,16 @@ class _HomeScreenState extends State<HomeScreen>
                                   color: Colors.black.withValues(alpha: 0.20),
                                   offset: const Offset(0, 4),
                                   blurRadius: 4,
-                                  spreadRadius: 0,
                                 ),
                               ],
                             ),
                             padding: const EdgeInsets.all(20),
                             child: Column(
                               children: [
-                                Row(
+                                const Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    const Text(
+                                    Text(
                                       'Натрупана сума',
                                       style: TextStyle(
                                         color: Colors.white,
@@ -321,12 +296,8 @@ class _HomeScreenState extends State<HomeScreen>
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
-                                    const SizedBox(width: 10),
-                                    const Icon(
-                                      Icons.savings_outlined,
-                                      color: Colors.white,
-                                      size: 24,
-                                    ),
+                                    SizedBox(width: 10),
+                                    Icon(Icons.savings_outlined, color: Colors.white, size: 24),
                                   ],
                                 ),
                                 const SizedBox(height: 12),
@@ -338,8 +309,7 @@ class _HomeScreenState extends State<HomeScreen>
                                       .order('date_issued', ascending: false)
                                       .limit(1),
                                   builder: (context, snapshot) {
-                                    if (snapshot.hasError) {
-                                      print('Stream Error: ${snapshot.error}');
+                                    if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
                                       return const Text(
                                         '0.00 €',
                                         style: TextStyle(
@@ -347,28 +317,7 @@ class _HomeScreenState extends State<HomeScreen>
                                           fontSize: 42,
                                           fontWeight: FontWeight.bold,
                                           shadows: [
-                                            Shadow(
-                                              offset: Offset(0, 2),
-                                              blurRadius: 4.0,
-                                              color: Color.fromARGB(64, 0, 0, 0),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    }
-                                    if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                                      return const Text(
-                                        '0.00 €',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 42,
-                                          fontWeight: FontWeight.bold,
-                                          shadows: [
-                                            Shadow(
-                                              offset: Offset(0, 2),
-                                              blurRadius: 4.0,
-                                              color: Color.fromARGB(64, 0, 0, 0),
-                                            ),
+                                            Shadow(offset: Offset(0, 2), blurRadius: 4.0, color: Color.fromARGB(64, 0, 0, 0)),
                                           ],
                                         ),
                                       );
@@ -398,16 +347,10 @@ class _HomeScreenState extends State<HomeScreen>
                             ),
                           ),
                           const SizedBox(height: 35),
-
-                          // History Section Title
                           const Center(
                             child: Text(
                               'История на покупките',
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold),
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -415,7 +358,6 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                     ),
 
-                    // Scrollable Transaction List (Live Data)
                     Expanded(
                       child: recentReceipts.isEmpty
                           ? const Center(
@@ -428,7 +370,6 @@ class _HomeScreenState extends State<HomeScreen>
                               padding: const EdgeInsets.symmetric(horizontal: 20.0),
                               itemCount: recentReceipts.length + 1,
                               itemBuilder: (context, index) {
-                                // Празно пространство най-отдолу за да не се закрива от менюто
                                 if (index == recentReceipts.length) {
                                   return const SizedBox(height: 100);
                                 }
@@ -441,7 +382,6 @@ class _HomeScreenState extends State<HomeScreen>
                                 String pointsText = '';
                                 bool isAccumulated = true;
 
-                                // Логика за текста на бележката
                                 if (usedDouble > 0) {
                                   pointsText = 'Приспаднато: -${usedDouble.toStringAsFixed(2)} €';
                                   isAccumulated = false;
@@ -450,7 +390,6 @@ class _HomeScreenState extends State<HomeScreen>
                                   isAccumulated = true;
                                 }
 
-                                // Форматиране на датата
                                 String formattedDate = '';
                                 try {
                                   if (receipt['date_issued'] != null) {
@@ -535,7 +474,6 @@ class _HomeScreenState extends State<HomeScreen>
     return AnimatedBuilder(
       animation: _bannerShakeAnimation,
       builder: (context, child) {
-        // Create a horizontal shaking effect using sine wave motion on the X-axis
         final shakeOffset = sin(_bannerShakeAnimation.value * pi * 8) * 4;
         return Transform.translate(
           offset: Offset(shakeOffset, 0),
@@ -567,8 +505,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildCardBack() {
-    final isCardNumberValid =
-        _physicalCardNumber.isNotEmpty && _physicalCardNumber.length > 3;
+    final isCardNumberValid = _physicalCardNumber.isNotEmpty && _physicalCardNumber.length > 3;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -605,11 +542,7 @@ class _HomeScreenState extends State<HomeScreen>
                         SizedBox(width: 6),
                         Text(
                           'сканирай карта',
-                          style: TextStyle(
-                            color: Colors.black87,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                          ),
+                          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 13),
                         ),
                       ],
                     ),
@@ -628,10 +561,7 @@ class _HomeScreenState extends State<HomeScreen>
                 child: Text(
                   'Няма въведена карта.\nДобавете номер от настройките.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -641,16 +571,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _showFullscreenBarcode(BuildContext context, String barcodeData) {
-    if (barcodeData.isEmpty || barcodeData.length <= 3) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Няма валидна карта за сканиране.'),
-          backgroundColor: Colors.orange,
-          duration: Duration(seconds: 2),
-        ),
-      );
-      return;
-    }
+    if (barcodeData.isEmpty || barcodeData.length <= 3) return;
 
     showDialog(
       context: context,
@@ -661,17 +582,11 @@ class _HomeScreenState extends State<HomeScreen>
           onTap: () => Navigator.of(context).pop(),
           child: ScaleTransition(
             scale: Tween<double>(begin: 0.5, end: 1.0).animate(
-              CurvedAnimation(
-                parent: ModalRoute.of(context)!.animation!,
-                curve: Curves.easeOutCubic,
-              ),
+              CurvedAnimation(parent: ModalRoute.of(context)!.animation!, curve: Curves.easeOutCubic),
             ),
             child: FadeTransition(
               opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
-                CurvedAnimation(
-                  parent: ModalRoute.of(context)!.animation!,
-                  curve: Curves.easeIn,
-                ),
+                CurvedAnimation(parent: ModalRoute.of(context)!.animation!, curve: Curves.easeIn),
               ),
               child: Center(
                 child: Material(
@@ -684,12 +599,7 @@ class _HomeScreenState extends State<HomeScreen>
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.20),
-                          offset: const Offset(0, 10),
-                          blurRadius: 25,
-                          spreadRadius: 0,
-                        ),
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.20), offset: const Offset(0, 10), blurRadius: 25),
                       ],
                     ),
                     padding: const EdgeInsets.all(32),
@@ -705,10 +615,7 @@ class _HomeScreenState extends State<HomeScreen>
                               data: barcodeData,
                               width: double.infinity,
                               height: 300,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                             ),
                           ),
                         ),
@@ -717,11 +624,7 @@ class _HomeScreenState extends State<HomeScreen>
                           onTap: () => Navigator.pop(context),
                           child: const Text(
                             'Затвори',
-                            style: TextStyle(
-                              color: Color(0xFF6B7280),
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
+                            style: TextStyle(color: Color(0xFF6B7280), fontSize: 14, fontWeight: FontWeight.w500),
                           ),
                         ),
                       ],
@@ -749,9 +652,7 @@ class _HomeScreenState extends State<HomeScreen>
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (context) => ReceiptDetailsScreen(receiptId: receiptId),
-            ),
+            MaterialPageRoute(builder: (context) => ReceiptDetailsScreen(receiptId: receiptId)),
           );
         },
         borderRadius: BorderRadius.circular(16),
@@ -764,11 +665,7 @@ class _HomeScreenState extends State<HomeScreen>
             color: const Color(0xFFFFFBFB),
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                offset: const Offset(0, 4),
-                blurRadius: 4,
-              ),
+              BoxShadow(color: Colors.black.withValues(alpha: 0.05), offset: const Offset(0, 4), blurRadius: 4),
             ],
           ),
           child: Row(
@@ -776,10 +673,7 @@ class _HomeScreenState extends State<HomeScreen>
               Container(
                 width: 45,
                 height: 45,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFDC2626),
-                  shape: BoxShape.circle,
-                ),
+                decoration: const BoxDecoration(color: Color(0xFFDC2626), shape: BoxShape.circle),
                 child: const Icon(Icons.savings_outlined, color: Colors.white, size: 22),
               ),
               const SizedBox(width: 12),
@@ -810,5 +704,207 @@ class _HomeScreenState extends State<HomeScreen>
         ),
       ),
     );
+  }
+
+  // =========================================================
+  // ЛОГИКА ЗА ОЦЕНЯВАНЕ НА ПОСЕЩЕНИЕТО
+  // =========================================================
+
+  void _listenForUnratedReceipts() {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    _receiptsSubscription = Supabase.instance.client
+        .from('receipts')
+        .stream(primaryKey: ['id'])
+        .eq('user_id', userId)
+        .order('date_issued', ascending: false)
+        .limit(1)
+        .listen((List<Map<String, dynamic>> data) {
+      if (data.isNotEmpty && mounted) {
+        final latestReceipt = data.first;
+        final rating = latestReceipt['rating'];
+        final dateIssuedStr = latestReceipt['date_issued'];
+
+        // Търсим NULL или 0
+        if ((rating == null || rating == 0) && dateIssuedStr != null && !_isShowingRatingDialog) {
+          final dateIssued = DateTime.parse(dateIssuedStr.toString()).toLocal();
+          final now = DateTime.now();
+          
+          if (now.difference(dateIssued).inHours.abs() <= 4) {
+            _isShowingRatingDialog = true; // Заключваме веднага, за да не се дублира
+            
+            // Изчакваме 800мс за да може списъкът да се обнови плавно първо
+            Future.delayed(const Duration(milliseconds: 800), () {
+              if (mounted) {
+                _showRatingBottomSheet(latestReceipt['id'].toString());
+              }
+            });
+          }
+        }
+      }
+    });
+  }
+
+  void _showRatingBottomSheet(String receiptId) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 16,
+            bottom: MediaQuery.of(context).padding.bottom + 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 50,
+                height: 5,
+                margin: const EdgeInsets.only(bottom: 24),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              const Text(
+                'Оценете преживяването си',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Вашето мнение ни помага да бъдем по-добри!',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+              const SizedBox(height: 30),
+              
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('😞 Разочарован', style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold)),
+                    Text('Възхитен 😍', style: TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 8,
+                runSpacing: 12,
+                children: List.generate(10, (index) {
+                  final ratingValue = index + 1;
+                  final double normalized = index / 9; 
+                  final Color bgColor = Color.lerp(Colors.red[500], Colors.green[600], normalized)!;
+
+                  return GestureDetector(
+                    onTap: () => _submitRating(receiptId, ratingValue),
+                    child: Container(
+                      width: 42,
+                      height: 45,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: bgColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: bgColor.withValues(alpha: 0.5), width: 1.5),
+                      ),
+                      child: Text(
+                        '$ratingValue',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: bgColor,
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+              const SizedBox(height: 35),
+              TextButton(
+                onPressed: () => _dismissRating(receiptId), // ВИКАМЕ НОВАТА ФУНКЦИЯ ЗА ОТКАЗ
+                child: const Text(
+                  'Не сега',
+                  style: TextStyle(color: Colors.grey, fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    ).then((_) {
+      if (mounted) setState(() => _isShowingRatingDialog = false);
+    });
+  }
+
+  Future<void> _submitRating(String receiptId, int rating) async {
+    Navigator.pop(context); // Затваряме менюто
+
+    try {
+      final idToUpdate = int.tryParse(receiptId) ?? receiptId;
+
+      final result = await Supabase.instance.client
+          .from('receipts')
+          .update({'rating': rating})
+          .eq('id', idToUpdate)
+          .select();
+
+      if (result.isEmpty) {
+        debugPrint('ГРЕШКА: Supabase не обнови нищо.');
+        return;
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 10),
+                Text('Благодарим ви за оценката! ❤️', style: TextStyle(fontWeight: FontWeight.bold)),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            margin: const EdgeInsets.all(10),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Грешка при запис на рейтинг: $e');
+    }
+  }
+
+  // НОВАТА ФУНКЦИЯ ЗА ЗАПИСВАНЕ НА ОТКАЗ (-1)
+  Future<void> _dismissRating(String receiptId) async {
+    Navigator.pop(context); // Скриваме менюто веднага
+
+    try {
+      final idToUpdate = int.tryParse(receiptId) ?? receiptId;
+      
+      // Записваме -1 тихо, за да не се показва повече този прозорец за тази бележка
+      await Supabase.instance.client
+          .from('receipts')
+          .update({'rating': -1})
+          .eq('id', idToUpdate);
+    } catch (e) {
+      debugPrint('Грешка при отказване на рейтинг: $e');
+    }
   }
 }
