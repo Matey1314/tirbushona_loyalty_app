@@ -166,11 +166,11 @@ class ReceiptDetailsScreen extends StatelessWidget {
                   _buildReceiptRow('Карта №:', cardNumber),
 
                   if (usedBonus > 0)
-                    _buildReceiptRow('Използван бонус:', '-${usedBonus.toStringAsFixed(2)} €', isRed: true, isBold: true)
+                    _buildReceiptRow('Използвана сума:', '-${usedBonus.toStringAsFixed(2)} €', isRed: true, isBold: true)
                   else if (pointsEarned > 0)
-                    _buildReceiptRow('Натрупан бонус:', '+${pointsEarned.toStringAsFixed(2)} €', isGreen: true, isBold: true),
+                    _buildReceiptRow('Натрупана сума:', '+${pointsEarned.toStringAsFixed(2)} €', isGreen: true, isBold: true),
 
-                  _buildReceiptRow('Налично:', '${balanceAfterTransaction.toStringAsFixed(2)} €', isBold: true),
+                  _buildReceiptRow('Налична сума:', '${balanceAfterTransaction.toStringAsFixed(2)} €', isBold: true),
 
                   _buildDottedDivider(),
                   const Center(

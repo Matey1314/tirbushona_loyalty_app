@@ -289,7 +289,7 @@ class _HomeScreenState extends State<HomeScreen>
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Text(
-                                      'Натрупана сума',
+                                      'Налична сума',
                                       style: TextStyle(
                                         color: Colors.white,
                                         fontSize: 18,
