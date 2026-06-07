@@ -33,12 +33,33 @@ class ReceiptDetailsScreen extends StatelessWidget {
           }
 
           final receipt = snapshot.data!;
-          final items = receipt['receipt_items'] as List<dynamic>? ?? [];
+          final rawItems = receipt['receipt_items'] as List<dynamic>? ?? [];
+
+          // Разделяме артикулите на нормални и върнати
+          final List<dynamic> regularItems = [];
+          final List<dynamic> returnedItems = [];
+
+          for (var item in rawItems) {
+            final pName = item['product_name']?.toString().toUpperCase() ?? '';
+            final qty = double.tryParse(item['quantity']?.toString() ?? '1') ?? 1.0;
+            final uPrice = double.tryParse(item['unit_price']?.toString() ?? '0') ?? 0.0;
+            final tPrice = double.tryParse(item['total_price']?.toString() ?? '0') ?? 0.0;
+
+            // Игнорираме, ако софтуерът е пратил празен ред с текст "ВЪРНАТИ" и нулева цена
+            if (pName == 'ВЪРНАТИ' && tPrice == 0 && qty == 0) continue;
+
+            final bool isReturned = tPrice < 0 || qty < 0 || uPrice < 0 || pName.contains('ВЪРНАТ');
+
+            if (isReturned) {
+              returnedItems.add(item);
+            } else {
+              regularItems.add(item);
+            }
+          }
 
           final usedBonus = double.tryParse(receipt['points_redeemed']?.toString() ?? '0') ?? 0;
           final pointsEarned = double.tryParse(receipt['points_earned']?.toString() ?? '0') ?? 0;
           
-          // Display raw balance_after_transaction from database - NO CALCULATIONS
           final balanceAfterTransaction = double.tryParse(receipt['balance_after_transaction']?.toString() ?? '0') ?? 0;
           final cardNumber = receipt['card_number'] ?? '0000';
           final clientFullName = receipt['profiles']?['full_name'] ?? 'Потребител';
@@ -51,7 +72,7 @@ class ReceiptDetailsScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -109,14 +130,29 @@ class ReceiptDetailsScreen extends StatelessWidget {
                   ),
                   _buildDottedDivider(),
 
-                  const Text('АРТИКУЛИ:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                  const SizedBox(height: 8),
-                  ...items.map((item) => _buildItemRow(item)),
+                  // НОРМАЛНИ АРТИКУЛИ
+                  if (regularItems.isNotEmpty) ...[
+                    const Text('АРТИКУЛИ:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    const SizedBox(height: 8),
+                    ...regularItems.map((item) => _buildItemRow(item, isReturned: false)),
+                  ],
+
+                  // ВЪРНАТИ АРТИКУЛИ (Отделени точно както на касовия бон)
+                  if (returnedItems.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    const Text(
+                      'ВЪРНАТИ',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.red, letterSpacing: 1.0),
+                    ),
+                    const SizedBox(height: 4),
+                    ...returnedItems.map((item) => _buildItemRow(item, isReturned: true)),
+                  ],
+
                   _buildDottedDivider(),
 
                   _buildReceiptRow('НАЧИН НА ПЛАЩАНЕ', receipt['payment_method'] ?? 'В БРОЙ / КАРТА'),
                   const SizedBox(height: 6),
-                  _buildTotalSummarySection(receipt, items),
+                  _buildTotalSummarySection(receipt, regularItems, returnedItems),
                   _buildDottedDivider(),
 
                   const Center(
@@ -130,11 +166,10 @@ class ReceiptDetailsScreen extends StatelessWidget {
                   _buildReceiptRow('Карта №:', cardNumber),
 
                   if (usedBonus > 0)
-                    _buildReceiptRow('Приспаднато:', '-${usedBonus.toStringAsFixed(2)} €', isRed: true, isBold: true)
+                    _buildReceiptRow('Използван бонус:', '-${usedBonus.toStringAsFixed(2)} €', isRed: true, isBold: true)
                   else if (pointsEarned > 0)
-                    _buildReceiptRow('Натрупано:', '+${pointsEarned.toStringAsFixed(2)} €', isGreen: true, isBold: true),
+                    _buildReceiptRow('Натрупан бонус:', '+${pointsEarned.toStringAsFixed(2)} €', isGreen: true, isBold: true),
 
-                  // Display raw balance_after_transaction from database - NO CALCULATIONS
                   _buildReceiptRow('Налично:', '${balanceAfterTransaction.toStringAsFixed(2)} €', isBold: true),
 
                   _buildDottedDivider(),
@@ -153,48 +188,51 @@ class ReceiptDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTotalSummarySection(Map<String, dynamic> receipt, List<dynamic> items) {
-    // Calculate original sum from all items
-    final originalSum = items.fold<double>(
-      0.0,
-      (sum, item) => sum + (double.tryParse(item['total_price']?.toString() ?? '0') ?? 0.0),
-    );
+  Widget _buildTotalSummarySection(Map<String, dynamic> receipt, List<dynamic> regularItems, List<dynamic> returnedItems) {
+    double grossSum = 0.0;
+    double returnedSum = 0.0;
 
-    // Get final total amount
+    for (var item in regularItems) {
+      final tPrice = double.tryParse(item['total_price']?.toString() ?? '0') ?? 0.0;
+      grossSum += tPrice;
+    }
+
+    for (var item in returnedItems) {
+      final tPrice = double.tryParse(item['total_price']?.toString() ?? '0') ?? 0.0;
+      returnedSum += tPrice.abs(); // Пазим я като положително число за лесно показване
+    }
+
     final finalTotal = double.tryParse(receipt['total_amount']?.toString() ?? '0') ?? 0.0;
-
-    // Calculate deducted amount
-    final deductedAmount = originalSum - finalTotal;
+    final generalDiscount = grossSum - returnedSum - finalTotal;
 
     return Column(
       children: [
-        // Row 1: Сума (Original Sum)
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 6.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Сума:', style: TextStyle(fontSize: 13)),
+              const Text('Сума продукти:', style: TextStyle(fontSize: 13)),
               Text(
-                '${originalSum.toStringAsFixed(2)} €',
+                '${grossSum.toStringAsFixed(2)} €',
                 style: const TextStyle(fontSize: 13, fontWeight: FontWeight.normal),
               ),
             ],
           ),
         ),
-        // Row 2: Приспаднато (Deducted - in RED)
-        if (deductedAmount > 0)
+        
+        if (returnedSum > 0)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 6.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'Приспаднато:',
+                  'Стойност върнати:',
                   style: TextStyle(fontSize: 13, color: Colors.red, fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  '- ${deductedAmount.toStringAsFixed(2)} €',
+                  '- ${returnedSum.toStringAsFixed(2)} €',
                   style: const TextStyle(
                     fontSize: 13,
                     color: Colors.red,
@@ -204,7 +242,29 @@ class ReceiptDetailsScreen extends StatelessWidget {
               ],
             ),
           ),
-        // Row 3: Обща сума (Final Total)
+
+        if (generalDiscount > 0.01)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Отстъпка:',
+                  style: TextStyle(fontSize: 13, color: Colors.red, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  '- ${generalDiscount.toStringAsFixed(2)} €',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 6.0),
           child: Row(
@@ -246,12 +306,26 @@ class ReceiptDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildItemRow(dynamic item) {
-    final pName = item['product_name'] ?? 'Продукт';
-    final qty = item['quantity'] ?? 1;
+  Widget _buildItemRow(dynamic item, {required bool isReturned}) {
+    String pName = item['product_name']?.toString() ?? 'Продукт';
+    final qty = double.tryParse(item['quantity']?.toString() ?? '1') ?? 1.0;
     final uPrice = double.tryParse(item['unit_price']?.toString() ?? '0') ?? 0.0;
     final tPrice = double.tryParse(item['total_price']?.toString() ?? '0') ?? 0.0;
     final isPromo = item['is_promo'] as bool? ?? false;
+
+    // Изчистваме системни текстове "ВЪРНАТИ" от самото име на продукта, ако софтуерът ги е залепил там (cross-platform съвместимо)
+    pName = pName.replaceAll(RegExp(r'ВЪРНАТИ\s*', caseSensitive: false), '').trim();
+    if (pName.isEmpty) pName = 'Върнат продукт';
+
+    String tPriceFormatted;
+    if (isReturned && tPrice > 0) {
+      tPriceFormatted = '-${tPrice.toStringAsFixed(2)} €';
+    } else {
+      tPriceFormatted = '${tPrice.toStringAsFixed(2)} €'; 
+    }
+
+    final Color titleColor = isReturned ? Colors.red : (isPromo ? Colors.green : Colors.black);
+    final Color subtitleColor = isReturned ? Colors.red.withValues(alpha: 0.8) : Colors.black54;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -266,11 +340,11 @@ class ReceiptDetailsScreen extends StatelessWidget {
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
-                    color: isPromo ? Colors.green : Colors.black,
+                    color: titleColor,
                   ),
                 ),
               ),
-              if (isPromo)
+              if (isPromo && !isReturned)
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.green,
@@ -291,8 +365,10 @@ class ReceiptDetailsScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('${qty}x ${uPrice.toStringAsFixed(2)}', style: const TextStyle(color: Colors.black54, fontSize: 13)),
-              Text('${tPrice.toStringAsFixed(2)} €', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              Text('${qty.abs().toStringAsFixed(qty.truncateToDouble() == qty ? 0 : 2)}x ${uPrice.abs().toStringAsFixed(2)}', 
+                   style: TextStyle(color: subtitleColor, fontSize: 13)),
+              Text(tPriceFormatted, 
+                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor)),
             ],
           ),
         ],
