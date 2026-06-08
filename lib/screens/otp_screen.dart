@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tirbushona_loyalty_app/core/theme/app_colors.dart';
 import 'package:tirbushona_loyalty_app/main.dart';
 import 'package:tirbushona_loyalty_app/services/auth_service.dart';
 import 'package:tirbushona_loyalty_app/widgets/primary_button.dart';
 import 'package:tirbushona_loyalty_app/widgets/bouncing_dots_indicator.dart';
 import 'home_screen.dart';
+import 'CardOnboardingScreen.dart'; // Добавен импорт за новия екран
 
 class OtpScreen extends StatefulWidget {
   final String phoneNumber;
@@ -92,11 +94,38 @@ class _OtpScreenState extends State<OtpScreen>
             // For phone change, show success and return to profile
             _showPhoneChangeSuccess();
           } else {
-            // For login, navigate to HomeScreen and clear the navigation stack
-            Navigator.of(context).pushAndRemoveUntil(
-              createSmoothRoute(const HomeScreen()),
-              (route) => false,
-            );
+            // Вземаме ID-то на потребителя
+            final userId = Supabase.instance.client.auth.currentUser?.id;
+            
+            if (userId != null) {
+              // 1. Питаме базата дали има вече въведена карта
+              final profile = await Supabase.instance.client
+                  .from('profiles')
+                  .select('physical_card_number')
+                  .eq('id', userId)
+                  .maybeSingle();
+
+              if (mounted) {
+                // 2. Проверяваме резултата
+                if (profile != null && 
+                    profile['physical_card_number'] != null && 
+                    profile['physical_card_number'].toString().trim().isNotEmpty && 
+                    profile['physical_card_number'] != 'EMPTY') {
+                      
+                  // ИМА КАРТА -> отива директно в HomeScreen
+                  Navigator.of(context).pushAndRemoveUntil(
+                    createSmoothRoute(const HomeScreen()),
+                    (route) => false,
+                  );
+                } else {
+                  // НЯМА КАРТА -> отива на екрана за избор (CardOnboardingScreen)
+                  Navigator.of(context).pushAndRemoveUntil(
+                    createSmoothRoute(const CardOnboardingScreen()),
+                    (route) => false,
+                  );
+                }
+              }
+            }
           }
         }
       } on Exception catch (error) {

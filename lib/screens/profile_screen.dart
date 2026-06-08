@@ -8,8 +8,6 @@ import 'dart:async';
 import 'package:tirbushona_loyalty_app/core/theme/app_colors.dart';
 import 'package:tirbushona_loyalty_app/core/state/user_state.dart';
 import 'package:tirbushona_loyalty_app/screens/change_phone_screen.dart';
-import 'package:tirbushona_loyalty_app/screens/change_logistic_number_screen.dart';
-import 'package:tirbushona_loyalty_app/main.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -271,55 +269,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onEditTap: _showDatePickerDialog,
                     ),
                     const SizedBox(height: 12),
+                    
+                    // КОРЕКЦИЯ: Премахнат onEditTap - Картата става нередактируема
                     _buildDataField(
                       label: 'Логистичен номер карта',
                       value: userState.userLogisticNumber.value,
                       controller: null,
                       icon: Icons.card_giftcard,
-                      onEditTap: () {
-                        Navigator.of(context)
-                            .push(
-                          createSmoothRoute(
-                            ChangeLogisticNumberScreen(
-                              currentNumber: userState.userLogisticNumber.value,
-                            ),
-                          ),
-                        )
-                            .then((newNumber) async {
-                          if (newNumber != null && newNumber is String) {
-                            // Update Supabase first
-                            await _updateProfileField('logistic_card_number', newNumber);
-                            // Update local state
-                            await userState.setUserLogisticNumber(newNumber);
-                            if (mounted) {
-                              setState(() {});
-                            }
-                          }
-                        });
-                      },
+                      onEditTap: null, 
                     ),
                     const SizedBox(height: 12),
+                    
+                    // КОРЕКЦИЯ: Премахнат onEditTap - Картата става нередактируема
                     _buildDataField(
                       label: 'Физически номер карта',
                       value: userState.userPhysicalCard.value,
                       controller: null,
                       icon: Icons.credit_card_outlined,
-                      onEditTap: () {
-                        _showEditDialog(
-                          'Физически номер карта',
-                          userState.userPhysicalCard.value,
-                          (newValue) async {
-                            // Update Supabase first
-                            await _updateProfileField('physical_card_number', newValue);
-                            // Update local state
-                            await userState.setUserPhysicalCard(newValue);
-                            if (mounted) {
-                              setState(() {});
-                            }
-                          },
-                          isNumeric: true,
-                        );
-                      },
+                      onEditTap: null, 
                     ),
                   ],
                 ),
@@ -649,7 +616,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               color: Color(0xFF6B7280),
               fontSize: 14,
               fontWeight: FontWeight.w500,
-            ),
+          ),
           ),
           actions: [
             TextButton(
@@ -666,7 +633,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                // Implement delete functionality here
                 _showDeleteSuccess();
               },
               child: const Text(
