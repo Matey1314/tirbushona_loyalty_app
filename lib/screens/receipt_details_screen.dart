@@ -8,67 +8,85 @@ class ReceiptDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF3F4F6),
-      appBar: AppBar(
-        title: const Text(
-          'Преглед на бон',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
-      ),
-      body: FutureBuilder<Map<String, dynamic>?>(
-        future: _fetchFullReceipt(receiptId),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _fetchFullReceipt(receiptId),
+      builder: (context, snapshot) {
+        // ДОКАТО ЗАРЕЖДА
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+        // ПРИ ГРЕШКА
+        if (snapshot.hasError) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Грешка')),
+            body: Center(child: Text('Грешка: ${snapshot.error}')),
+          );
+        }
+        // АКО НЯМА ДАННИ
+        if (!snapshot.hasData || snapshot.data == null) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Липсва бон')),
+            body: const Center(child: Text('Бонът не беше намерен.')),
+          );
+        }
+
+        final receipt = snapshot.data!;
+        
+        // 💡 КАТЕГОРИЧНО РАЗПОЗНАВАНЕ: Сторно или нормална продажба
+        final bool isStorno = receipt['is_storno'] == true;
+
+        final rawItems = receipt['receipt_items'] as List<dynamic>? ?? [];
+
+        // Разделяме артикулите на нормални и върнати
+        final List<dynamic> regularItems = [];
+        final List<dynamic> returnedItems = [];
+
+        for (var item in rawItems) {
+          final pNameRaw = item['product_name']?.toString() ?? '';
+          final pName = pNameRaw.trim().toUpperCase();
+          final qty = double.tryParse(item['quantity']?.toString() ?? '1') ?? 1.0;
+          final uPrice = double.tryParse(item['unit_price']?.toString() ?? '0') ?? 0.0;
+          final tPrice = double.tryParse(item['total_price']?.toString() ?? '0') ?? 0.0;
+
+          // Игнорираме напълно празни редове, NULL редове или служебни маркировки за отстъпки
+          if (pName.isEmpty || pName == 'NULL' || pName == 'ВЪРНАТИ') continue;
+          if (pNameRaw.toLowerCase().contains('отстъпка') || pNameRaw.toLowerCase().contains('бонус')) continue;
+
+          final bool isReturned = tPrice < 0 || qty < 0 || uPrice < 0 || pName.contains('ВЪРНАТ');
+
+          if (isReturned) {
+            returnedItems.add(item);
+          } else {
+            regularItems.add(item);
           }
-          if (snapshot.hasError) {
-            return Center(child: Text('Грешка: ${snapshot.error}'));
-          }
-          if (!snapshot.hasData || snapshot.data == null) {
-            return const Center(child: Text('Бонът не беше намерен.'));
-          }
+        }
 
-          final receipt = snapshot.data!;
-          final rawItems = receipt['receipt_items'] as List<dynamic>? ?? [];
+        // Вземаме сигурно стойността на използваните бонус пари
+        final usedBonus = double.tryParse(receipt['used_bonus_money']?.toString() ?? '') ??
+            double.tryParse(receipt['points_redeemed']?.toString() ?? '0') ?? 0.0;
+            
+        final pointsEarned = double.tryParse(receipt['points_earned']?.toString() ?? '0') ?? 0;
+        final balanceAfterTransaction = double.tryParse(receipt['balance_after_transaction']?.toString() ?? '0') ?? 0;
+        final cardNumber = receipt['card_number'] ?? '0000';
+        final clientFullName = receipt['profiles']?['full_name'] ?? 'Потребител';
 
-          // Разделяме артикулите на нормални и върнати
-          final List<dynamic> regularItems = [];
-          final List<dynamic> returnedItems = [];
-
-          for (var item in rawItems) {
-            final pNameRaw = item['product_name']?.toString() ?? '';
-            final pName = pNameRaw.trim().toUpperCase();
-            final qty = double.tryParse(item['quantity']?.toString() ?? '1') ?? 1.0;
-            final uPrice = double.tryParse(item['unit_price']?.toString() ?? '0') ?? 0.0;
-            final tPrice = double.tryParse(item['total_price']?.toString() ?? '0') ?? 0.0;
-
-            // КОРЕКЦИЯ: Игнорираме напълно празни редове, NULL редове или служебни маркировки за отстъпки
-            if (pName.isEmpty || pName == 'NULL' || pName == 'ВЪРНАТИ') continue;
-            if (pNameRaw.toLowerCase().contains('отстъпка') || pNameRaw.toLowerCase().contains('бонус')) continue;
-
-            final bool isReturned = tPrice < 0 || qty < 0 || uPrice < 0 || pName.contains('ВЪРНАТ');
-
-            if (isReturned) {
-              returnedItems.add(item);
-            } else {
-              regularItems.add(item);
-            }
-          }
-
-          // КОРЕКЦИЯ: Вземаме сигурно стойността на използваните бонус пари от двата възможни колони
-          final usedBonus = double.tryParse(receipt['used_bonus_money']?.toString() ?? '') ??
-                            double.tryParse(receipt['points_redeemed']?.toString() ?? '0') ?? 0.0;
-                            
-          final pointsEarned = double.tryParse(receipt['points_earned']?.toString() ?? '0') ?? 0;
-          final balanceAfterTransaction = double.tryParse(receipt['balance_after_transaction']?.toString() ?? '0') ?? 0;
-          final cardNumber = receipt['card_number'] ?? '0000';
-          final clientFullName = receipt['profiles']?['full_name'] ?? 'Потребител';
-
-          return SingleChildScrollView(
+        // ИЗГРАЖДАНЕ НА САМИЯ ЕКРАН
+        return Scaffold(
+          backgroundColor: const Color(0xFFF3F4F6),
+          // 🎨 ДИНАМИЧЕН APPBAR СПОРЕД ТИПА БОН
+          appBar: AppBar(
+            title: Text(
+              isStorno ? 'СТОРНО БОН № ${receipt['system_num']}' : 'Преглед на бон',
+              style: TextStyle(
+                color: isStorno ? Colors.white : Colors.black, 
+                fontWeight: FontWeight.bold
+              ),
+            ),
+            backgroundColor: isStorno ? const Color(0xFF991B1B) : Colors.white,
+            elevation: 0,
+            iconTheme: IconThemeData(color: isStorno ? Colors.white : Colors.black),
+          ),
+          body: SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Container(
               decoration: BoxDecoration(
@@ -86,6 +104,22 @@ class ReceiptDetailsScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // 🚨 БАНЕР ЗА СТОРНО
+                  if (isStorno) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(color: const Color(0xFFFEE2E2), borderRadius: BorderRadius.circular(6)),
+                      child: const Center(
+                        child: Text(
+                          'АВТОМАТИЧНО СТОРНО',
+                          style: TextStyle(color: Color(0xFF991B1B), fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 1),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
                   Center(
                     child: Column(
                       children: [
@@ -129,7 +163,7 @@ class ReceiptDetailsScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('Терминал № ${receipt['terminal_num'] ?? '1'}', style: const TextStyle(fontSize: 13)),
-                      Text('Сист. № ${receipt['system_num'] ?? '407970'}', style: const TextStyle(fontSize: 13)),
+                      Text('Сист. № ${receipt['system_num'] ?? '000000'}', style: const TextStyle(fontSize: 13)),
                     ],
                   ),
                   _buildDottedDivider(),
@@ -141,12 +175,17 @@ class ReceiptDetailsScreen extends StatelessWidget {
                     ...regularItems.map((item) => _buildItemRow(item, isReturned: false)),
                   ],
 
-                  // ВЪРНАТИ АРТИКУЛИ
+                  // ВЪРНАТИ АРТИКУЛИ ИЛИ СТОРНИРАНИ
                   if (returnedItems.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    const Text(
-                      'ВЪРНАТИ',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.red, letterSpacing: 1.0),
+                    if (regularItems.isNotEmpty) const SizedBox(height: 12),
+                    Text(
+                      isStorno ? 'СТОРНО!' : 'ВЪРНАТИ', // <--- МАГИЯТА ЗА ЗАГЛАВИЕТО
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold, 
+                        fontSize: 15, 
+                        color: isStorno ? const Color(0xFF991B1B) : Colors.red, 
+                        letterSpacing: 1.0
+                      ),
                     ),
                     const SizedBox(height: 4),
                     ...returnedItems.map((item) => _buildItemRow(item, isReturned: true)),
@@ -157,8 +196,8 @@ class ReceiptDetailsScreen extends StatelessWidget {
                   _buildReceiptRow('НАЧИН НА ПЛАЩАНЕ', receipt['payment_method'] ?? 'В БРОЙ / КАРТА'),
                   const SizedBox(height: 6),
                   
-                  // КОРЕКЦИЯ: Обновената секция с тоталите
-                  _buildTotalSummarySection(receipt, regularItems, returnedItems, usedBonus),
+                  // СЕКЦИЯ С ТОТАЛИТЕ
+                  _buildTotalSummarySection(receipt, regularItems, returnedItems, usedBonus, isStorno),
                   _buildDottedDivider(),
 
                   const Center(
@@ -171,11 +210,13 @@ class ReceiptDetailsScreen extends StatelessWidget {
                   _buildReceiptRow('Client:', clientFullName),
                   _buildReceiptRow('Карта №:', cardNumber),
 
-                  // КОРЕКЦИЯ: Позволяваме да се виждат и двете операции едновременно, ако съвпадат в един бон
-                  if (usedBonus > 0)
-                    _buildReceiptRow('Използвана сума:', '-${usedBonus.toStringAsFixed(2)} €', isRed: true, isBold: true),
-                  if (pointsEarned > 0)
-                    _buildReceiptRow('Натрупана сума:', '+${pointsEarned.toStringAsFixed(2)} €', isGreen: true, isBold: true),
+                  // ПОРТФЕЙЛ ОПЕРАЦИИ (КРИЯТ СЕ ПРИ СТОРНО)
+                  if (!isStorno) ...[
+                    if (usedBonus > 0)
+                      _buildReceiptRow('Използвана сума:', '-${usedBonus.toStringAsFixed(2)} €', isRed: true, isBold: true),
+                    if (pointsEarned > 0)
+                      _buildReceiptRow('Натрупана сума:', '+${pointsEarned.toStringAsFixed(2)} €', isGreen: true, isBold: true),
+                  ],
 
                   _buildReceiptRow('Налична сума:', '${balanceAfterTransaction.toStringAsFixed(2)} €', isBold: true),
 
@@ -189,14 +230,13 @@ class ReceiptDetailsScreen extends StatelessWidget {
                 ],
               ),
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 
-  // КОРЕКЦИЯ: Пренаредена функция за тоталите, която взема предвид usedBonus
-  Widget _buildTotalSummarySection(Map<String, dynamic> receipt, List<dynamic> regularItems, List<dynamic> returnedItems, double usedBonus) {
+  Widget _buildTotalSummarySection(Map<String, dynamic> receipt, List<dynamic> regularItems, List<dynamic> returnedItems, double usedBonus, bool isStorno) {
     double grossSum = 0.0;
     double returnedSum = 0.0;
 
@@ -210,7 +250,7 @@ class ReceiptDetailsScreen extends StatelessWidget {
       returnedSum += tPrice.abs();
     }
 
-    final finalTotal = double.tryParse(receipt['total_amount']?.toString() ?? '0') ?? 0.0;
+    final finalTotal = (double.tryParse(receipt['total_amount']?.toString() ?? '0') ?? 0.0).abs();
     
     // Чиста търговска отстъпка = Продукти - Върнати - Бонус пари - Финално платено
     double generalDiscount = grossSum - returnedSum - usedBonus - finalTotal;
@@ -218,15 +258,19 @@ class ReceiptDetailsScreen extends StatelessWidget {
 
     return Column(
       children: [
-        _buildSummaryField('Сума продукти:', '${grossSum.toStringAsFixed(2)} €'),
+        if (grossSum > 0)
+          _buildSummaryField('Сума продукти:', '${grossSum.toStringAsFixed(2)} €'),
         
-        if (returnedSum > 0)
+        if (isStorno && returnedSum > 0)
+          _buildSummaryField('Стойност сторно:', '${returnedSum.toStringAsFixed(2)} €', textColor: const Color(0xFF991B1B), isBold: true),
+        
+        if (!isStorno && returnedSum > 0)
           _buildSummaryField('Стойност върнати:', '- ${returnedSum.toStringAsFixed(2)} €', textColor: Colors.red, isBold: true),
 
-        if (usedBonus > 0)
+        if (usedBonus > 0 && !isStorno)
           _buildSummaryField('Приспаднато от натрупаната сума:', '- ${usedBonus.toStringAsFixed(2)} €', textColor: Colors.orange[800], isBold: true),
 
-        if (generalDiscount > 0.01)
+        if (generalDiscount > 0.01 && !isStorno)
           _buildSummaryField('Отстъпка:', '- ${generalDiscount.toStringAsFixed(2)} €', textColor: Colors.red, isBold: true),
           
         Padding(
@@ -234,10 +278,17 @@ class ReceiptDetailsScreen extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Обща сума:', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
               Text(
-                '${finalTotal.toStringAsFixed(2)} €',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                isStorno ? 'СТОРНИРАНА СУМА:' : 'Обща сума:', 
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)
+              ),
+              Text(
+                '${isStorno ? "-" : ""}${finalTotal.toStringAsFixed(2)} €',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold, 
+                  fontSize: 18,
+                  color: isStorno ? const Color(0xFF991B1B) : Colors.black
+                ),
               ),
             ],
           ),
@@ -370,7 +421,8 @@ class ReceiptDetailsScreen extends StatelessWidget {
   Future<Map<String, dynamic>?> _fetchFullReceipt(String id) async {
     final response = await Supabase.instance.client
         .from('receipts')
-        .select('id, company_name, store_name, store_address, vat_number, cashier_name, unp, terminal_num, system_num, payment_method, card_number, total_amount, points_earned, points_redeemed, used_bonus_money, balance_after_transaction, receipt_items(*), profiles(full_name)')
+        // 💡 ВАЖНО: Добавих is_storno към заявката, за да можем да го четем!
+        .select('id, company_name, store_name, store_address, vat_number, cashier_name, unp, terminal_num, system_num, payment_method, card_number, total_amount, points_earned, points_redeemed, used_bonus_money, is_storno, balance_after_transaction, receipt_items(*), profiles(full_name)')
         .eq('id', id)
         .maybeSingle(); 
     return response;
